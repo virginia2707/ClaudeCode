@@ -67,4 +67,5 @@ legacy/                ancien prototype, exclu du build (supprimable)
 | R/T | Recherche + architecture | DONE |
 | 1 | Architecture + design system + landing page | DONE |
 | 2 | Authentification + rôles (ADMIN / TRAINER / LEARNER), routes protégées, 403, rate limiting | DONE |
-| 3 → 20 | Dashboard, création, step builder, moteur, sessions, apprenant, équipes, score, rapports, badges, IA, démo, responsive, sécurité | à venir |
+| 3 | Dashboard formateur : jeux (filtres, publier, dépublier, dupliquer, archiver, restaurer, supprimer), sessions, compétences, paramètres | DONE |
+| 4 → 20 | Création, step builder, moteur, sessions, apprenant, équipes, score, rapports, badges, IA, démo, responsive, sécurité | à venir |
