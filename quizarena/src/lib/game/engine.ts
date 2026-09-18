@@ -6,6 +6,7 @@ import { loadPlayerViews, loadQuestionView, loadRevealView, rankPlayers } from "
 import { scoreAnswer, xpForScore } from "./scoring";
 import { levelFor } from "./levels";
 import { persistGameReport } from "./report";
+import { awardBadges } from "./badges";
 import { track } from "@/lib/analytics";
 import { JOKER_TYPES, type JokerType } from "@/lib/constants";
 import { fiftyFiftyHidden, type JokerUseResult } from "./jokers";
@@ -248,6 +249,7 @@ export async function finishGame(gameId: string) {
     if (p.userId) await prisma.user.update({ where: { id: p.userId }, data: { totalXp: { increment: xp } } });
   }
   await persistGameReport(gameId);
+  await awardBadges(gameId);
   await track("quiz_completed", { userId: game.hostId, gameId, payload: { players: ranked.length } });
   getBus().publish(gameId, { type: "game_finished" });
 }

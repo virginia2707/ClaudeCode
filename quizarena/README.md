@@ -50,6 +50,6 @@ npm run dev
 | 9 | Jokers | ✅ |
 | 10 | Statistiques | ✅ |
 | 11 | IA | ✅ |
-| 12 | Badges, niveaux, XP | ⏳ |
+| 12 | Badges, niveaux, XP | ✅ |
 | 13 | Responsive + accessibilité | ⏳ |
 | 14 | Sécurité et performance | ⏳ |

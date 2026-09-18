@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Award } from "lucide-react";
 import { AppHeader } from "@/components/app-header";
 import { SiteFooter } from "@/components/site-footer";
 import { StatTile } from "@/components/ui/stat-tile";
 import { getCurrentUser } from "@/lib/auth/session";
+import { prisma } from "@/lib/db/prisma";
 import { levelFor, nextLevel, levelProgress } from "@/lib/game/levels";
 import { formatPoints } from "@/lib/utils";
 
@@ -15,6 +18,11 @@ export default async function ProfilePage() {
   const level = levelFor(user.totalXp);
   const next = nextLevel(user.totalXp);
   const progress = levelProgress(user.totalXp);
+  const [recentBadges, badgeCount, totalBadges] = await Promise.all([
+    prisma.playerBadge.findMany({ where: { userId: user.id }, orderBy: { awardedAt: "desc" }, take: 6, include: { badge: true } }),
+    prisma.playerBadge.count({ where: { userId: user.id } }),
+    prisma.badge.count(),
+  ]);
 
   return (
     <>
@@ -40,7 +48,26 @@ export default async function ProfilePage() {
             <div className="timer-fill" style={{ width: `${progress * 100}%` }} />
           </div>
         </div>
-        <p className="mt-6 text-sm text-text-muted">Les badges et l&apos;historique des parties arrivent dans une phase ultérieure.</p>
+
+        <div className="card mt-4 p-5">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold">Badges</h2>
+            <Link href="/badges" className="text-sm text-primary-strong hover:underline">
+              Voir tout ({badgeCount} / {totalBadges})
+            </Link>
+          </div>
+          {recentBadges.length === 0 ? (
+            <p className="mt-2 text-sm text-text-muted">Aucun badge débloqué pour le moment. Jouez une partie pour en gagner.</p>
+          ) : (
+            <ul className="mt-3 flex flex-wrap gap-2">
+              {recentBadges.map((pb) => (
+                <li key={pb.id} className="pill pill-spark" title={pb.badge.description}>
+                  <Award className="size-3.5" aria-hidden="true" /> {pb.badge.name}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </main>
       <SiteFooter />
     </>

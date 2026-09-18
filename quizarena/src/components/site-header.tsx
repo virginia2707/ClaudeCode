@@ -16,10 +16,22 @@ export function SiteHeader({ user, logoutAction }: { user: HeaderUser; logoutAct
           </Link>
           {user ? (
             <>
-              <Link href="/dashboard" className="btn btn-secondary btn-sm">
-                <span className="sm:hidden">Tableau</span>
-                <span className="hidden sm:inline">Tableau de bord</span>
-              </Link>
+              {user.role === "LEARNER" ? (
+                <>
+                  <Link href="/badges" className="btn btn-ghost btn-sm hidden sm:inline-flex">
+                    Badges
+                  </Link>
+                  <Link href="/profile" className="btn btn-secondary btn-sm">
+                    <span className="sm:hidden">Profil</span>
+                    <span className="hidden sm:inline">Mon profil</span>
+                  </Link>
+                </>
+              ) : (
+                <Link href="/dashboard" className="btn btn-secondary btn-sm">
+                  <span className="sm:hidden">Tableau</span>
+                  <span className="hidden sm:inline">Tableau de bord</span>
+                </Link>
+              )}
               {logoutAction ? (
                 <form action={logoutAction}>
                   <button type="submit" className="btn btn-ghost btn-sm">

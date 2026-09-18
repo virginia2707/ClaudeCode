@@ -2,6 +2,7 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { seedDemoContent } from "./seed-demo";
+import { seedBadges } from "./seed-badges";
 
 const prisma = new PrismaClient();
 
@@ -25,6 +26,7 @@ async function main() {
       },
     });
   }
+  await seedBadges(prisma);
   await seedDemoContent(prisma);
   console.log("Seed complete: demo accounts ready.");
 }
