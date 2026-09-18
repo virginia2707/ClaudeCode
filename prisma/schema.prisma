@@ -1,6 +1,21 @@
-// The Apprentice — data model
-// SQLite is used for the MVP (zero external infra, ships in one file).
-// Swapping to Postgres later only requires changing `provider` + `url`.
+// ─────────────────────────────────────────────────────────────────────────────
+// MissionIA — modèle de données
+//
+// SQLite pour le développement local (zéro infrastructure). En production,
+// basculer sur PostgreSQL revient à changer `provider` + `url` : le schéma
+// n'utilise aucune fonctionnalité spécifique à SQLite.
+//
+// Conventions :
+// - Les valeurs de type "enum" sont des `String` (SQLite ne supporte pas les
+//   enums Prisma). La liste canonique et typée vit dans `src/lib/constants.ts`.
+// - Les colonnes suffixées `Json` contiennent du JSON sérialisé et validé par
+//   Zod côté serveur (`src/lib/mission-engine/schemas.ts`).
+// - Tout ce qui est confidentiel pour l'apprenant (corrigés, critères cachés,
+//   options recommandées, anomalies d'un jeu de données) est marqué
+//   `// SERVER-ONLY` : jamais sérialisé vers le client apprenant.
+// - Isolation multi-tenant : toute entité métier porte `organizationId`
+//   directement ou via sa mission ; les requêtes passent par un scope org.
+// ─────────────────────────────────────────────────────────────────────────────
 
 generator client {
   provider = "prisma-client-js"
@@ -11,224 +26,874 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// SQLite has no native enum support in Prisma, so the enums below are
-// modeled as `String` columns. Allowed values are enforced in application
-// code — see src/lib/constants.ts for the canonical lists:
-// Role: ADMIN | FORMATEUR | APPRENANT
-// Plan: FREE | PRO | BUSINESS | ENTERPRISE
-// SimulationStatus: DRAFT | PUBLISHED | ARCHIVED
-// Difficulty: EASY | MEDIUM | HARD | EXPERT
-// ProgressStatus: IN_PROGRESS | COMPLETED | ABANDONED
-// AIInteractionType: GENERATE_SIMULATION | COACH_HINT | GENERATE_FEEDBACK | GENERATE_REPORT
+// ═══════════════════════════════════════════════════════════════════════════
+// 1. IDENTITÉ & ORGANISATIONS
+// ═══════════════════════════════════════════════════════════════════════════
 
 model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  passwordHash    String
+  name            String
+  avatarUrl       String?
+  locale          String    @default("fr")
+  isPlatformAdmin Boolean   @default(false) // super-admin MissionIA (support, opérations)
+  lastLoginAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  memberships          Membership[]
+  missionsCreated      Mission[]            @relation("MissionCreatedBy")
+  sessionsLed          Session[]            @relation("SessionTrainer")
+  participations       SessionParticipant[]
+  teamMemberships      TeamMember[]
+  progresses           LearnerProgress[]
+  evaluationsGiven     Evaluation[]         @relation("EvaluationBy")
+  badges               PlayerBadge[]
+  xpTransactions       XPTransaction[]
+  aiJobs               AIJob[]
+  courseImports        CourseImport[]
+  learningPathsCreated LearningPath[]
+  analyticsEvents      AnalyticsEvent[]
+  auditLogs            AuditLog[]
+  invitationsSent      Invitation[]         @relation("InvitedBy")
+}
+
+model Organization {
   id           String   @id @default(cuid())
   name         String
-  email        String   @unique
-  passwordHash String
-  role         String   @default("APPRENANT")
-  plan         String   @default("FREE")
+  slug         String   @unique
+  plan         String   @default("FREE") // FREE | PRO | BUSINESS | ENTERPRISE
+  settingsJson String   @default("{}") // branding, options IA, quotas personnalisés
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  simulationsCreated Simulation[]    @relation("CreatedSimulations")
-  progresses         Progress[]
-  aiInteractions     AIInteraction[]
+  memberships     Membership[]
+  invitations     Invitation[]
+  missions        Mission[]
+  skills          Skill[]
+  badges          Badge[]
+  sessions        Session[]
+  aiJobs          AIJob[]
+  courseImports   CourseImport[]
+  learningPaths   LearningPath[]
+  analyticsEvents AnalyticsEvent[]
+  auditLogs       AuditLog[]
 }
 
-model Simulation {
-  id          String            @id @default(cuid())
-  title       String
-  job         String
-  company     String
-  context     String
-  description String
-  durationDays Int              @default(5)
-  status      String            @default("DRAFT")
-  accessCode  String?           @unique
-  createdById String
-  createdBy   User              @relation("CreatedSimulations", fields: [createdById], references: [id])
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+// Un utilisateur peut appartenir à plusieurs organisations avec un rôle
+// différent dans chacune (formateur indépendant + apprenant chez un client).
+model Membership {
+  id             String       @id @default(cuid())
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role           String // ADMIN | TRAINER | LEARNER
+  status         String       @default("ACTIVE") // ACTIVE | DISABLED
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
-  skills     Skill[]
-  missions   Mission[]
-  badges     Badge[]
-  progresses Progress[]
+  @@unique([userId, organizationId])
+  @@index([organizationId, role])
 }
 
+model Invitation {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  email          String
+  role           String // ADMIN | TRAINER | LEARNER
+  token          String       @unique
+  sessionId      String? // invitation directe à une session (apprenants)
+  invitedById    String
+  invitedBy      User         @relation("InvitedBy", fields: [invitedById], references: [id])
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId, email])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 2. RÉFÉRENTIEL DE COMPÉTENCES
+// ═══════════════════════════════════════════════════════════════════════════
+
+// organizationId null = compétence de la bibliothèque globale MissionIA.
 model Skill {
-  id           String     @id @default(cuid())
-  simulationId String
-  simulation   Simulation @relation(fields: [simulationId], references: [id], onDelete: Cascade)
-  name         String
-  description  String?
-  icon         String?
-  order        Int        @default(0)
+  id             String        @id @default(cuid())
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  slug           String
+  description    String?
+  category       String? // ex. "Analyse", "Communication", "Gestion"
+  createdAt      DateTime      @default(now())
 
-  userSkills UserSkill[]
+  missionSkills MissionSkill[]
+  stepSkills    StepSkill[]
+  taskSkills    Task[]
+
+  @@unique([organizationId, slug])
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 3. MISSION (contenu auteur, côté formateur)
+// ═══════════════════════════════════════════════════════════════════════════
 
 model Mission {
-  id                      String     @id @default(cuid())
-  simulationId            String
-  simulation              Simulation @relation(fields: [simulationId], references: [id], onDelete: Cascade)
-  dayNumber               Int
-  title                   String
-  description             String
-  context                 String
-  objective               String
-  estimatedDurationMinutes Int       @default(15)
-  difficulty              String     @default("MEDIUM")
-  xpAvailable             Int        @default(150)
-  maxScore                Int        @default(100)
-  order                   Int        @default(0)
-  createdAt               DateTime   @default(now())
-  updatedAt               DateTime   @updatedAt
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdById    String
+  createdBy      User         @relation("MissionCreatedBy", fields: [createdById], references: [id])
 
-  situations Situation[]
-}
-
-model Situation {
-  id              String     @id @default(cuid())
-  missionId       String
-  mission         Mission    @relation(fields: [missionId], references: [id], onDelete: Cascade)
   title           String
-  description     String
-  order           Int        @default(0)
-  difficulty      String     @default("MEDIUM")
-  timeLimitSeconds Int?
+  description     String  @default("")
+  sector          String? // secteur professionnel
+  jobTitle        String? // métier
+  level           String  @default("INTERMEDIATE") // BEGINNER | INTERMEDIATE | ADVANCED | EXPERT (niveau du public)
+  difficulty      String  @default("INTERMEDIATE") // BEGINNER | INTERMEDIATE | ADVANCED | EXPERT (difficulté de la mission)
+  durationMinutes Int     @default(60)
+  mode            String  @default("INDIVIDUAL") // INDIVIDUAL | TEAM
+  objectivesJson  String  @default("[]") // string[] objectifs pédagogiques
+  expectedOutcome String  @default("") // résultat attendu
 
-  choices   Choice[]
-  decisions Decision[]
+  status           String        @default("DRAFT") // DRAFT | IN_REVIEW | PUBLISHED | ARCHIVED
+  version          Int           @default(1)
+  sourceType       String        @default("MANUAL") // MANUAL | AI_GENERATED | IMPORTED | DUPLICATED
+  sourceImportId   String?
+  sourceImport     CourseImport? @relation(fields: [sourceImportId], references: [id])
+  duplicatedFromId String?
+
+  // Configuration du score et de la gamification (désactivables)
+  scoringMode       String  @default("SCORE_AND_SKILLS") // SCORE_AND_SKILLS | SKILLS_ONLY
+  scoringConfigJson String  @default("{}") // pondérations, bonus autonomie, pénalité indices
+  coachEnabled      Boolean @default(true)
+  coachConfigJson   String  @default("{}") // niveaux d'aide autorisés, ton, limites
+
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  scenario    Scenario?
+  learnerRole LearnerRole?
+  constraints Constraint[]
+  steps       MissionStep[]
+  resources   Resource[]
+  datasets    DataSet[]
+  skills      MissionSkill[]
+  criteria    EvaluationCriteria[]
+  sessions    Session[]
+  progresses  LearnerProgress[]
+  pathItems   LearningPathItem[]
+  aiJobs      AIJob[]
+
+  @@index([organizationId, status])
+  @@index([createdById])
 }
 
-model Choice {
-  id          String @id @default(cuid())
-  situationId String
-  situation   Situation @relation(fields: [situationId], references: [id], onDelete: Cascade)
-  label       String
-  text        String
-  order       Int    @default(0)
-
-  consequence Consequence?
-  decisions   Decision[]
+// Le scénario répond au briefing : QUI / OÙ / QUEL problème / POURQUOI / DÉLAI /
+// CONTRAINTES / RÉSULTAT ATTENDU.
+model Scenario {
+  id             String  @id @default(cuid())
+  missionId      String  @unique
+  mission        Mission @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  companyName    String  @default("")
+  setting        String  @default("") // OÙ êtes-vous
+  context        String  @default("") // contexte général
+  problem        String  @default("") // QUEL est le problème
+  stakes         String  @default("") // POURQUOI agir
+  timeframe      String  @default("") // QUEL délai (narratif, ex. "48 heures")
+  briefing       String  @default("") // texte immersif présenté à l'apprenant
+  openingMessage String  @default("") // message d'accroche (ex. mail du directeur)
 }
 
-model Consequence {
-  id              String  @id @default(cuid())
-  choiceId        String  @unique
-  choice          Choice  @relation(fields: [choiceId], references: [id], onDelete: Cascade)
-  outcomeText     String
-  coachFeedback   String
-  variableDeltas  String  // JSON map, e.g. {"customer_satisfaction":15,"communication":10}
-  skillDeltas     String  // JSON map, e.g. {"<skillId>":8}
-  xpAward         Int     @default(0)
-  nextSituationId String? // branching override; null = next situation in mission order
+// Rôle attribué à l'apprenant dans la mission.
+model LearnerRole {
+  id               String  @id @default(cuid())
+  missionId        String  @unique
+  mission          Mission @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  title            String // ex. "Responsable marketing"
+  department       String  @default("")
+  seniority        String  @default("")
+  reportsTo        String  @default("")
+  responsibilities String  @default("")
 }
 
-model Progress {
-  id                 String         @id @default(cuid())
-  userId             String
-  user               User           @relation(fields: [userId], references: [id])
-  simulationId       String
-  simulation         Simulation     @relation(fields: [simulationId], references: [id])
-  status             String         @default("IN_PROGRESS")
-  currentMissionId   String?
-  currentSituationId String?
-  score              Int            @default(0)
-  xp                 Int            @default(0)
-  variablesJson      String         @default("{}")
-  startedAt          DateTime       @default(now())
-  completedAt        DateTime?
+// Contraintes comparables aux décisions (budget max, délai, effectif, cible…).
+model Constraint {
+  id          String  @id @default(cuid())
+  missionId   String
+  mission     Mission @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  key         String // identifiant stable, ex. "budget"
+  label       String // ex. "Budget maximum"
+  type        String // BUDGET | TIME | TEAM | TARGET | RISK | CUSTOM
+  operator    String  @default("MAX") // MAX | MIN | EQ
+  value       Float?
+  unit        String? // "€", "h", "personnes", "%"
+  description String  @default("")
+  order       Int     @default(0)
 
-  decisions      Decision[]
-  userSkills     UserSkill[]
-  xpTransactions XPTransaction[]
-  userBadges     UserBadge[]
-  report         Report?
+  @@unique([missionId, key])
+}
 
-  @@unique([userId, simulationId])
+// ═══════════════════════════════════════════════════════════════════════════
+// 4. ÉTAPES, TÂCHES, DÉCISIONS
+// ═══════════════════════════════════════════════════════════════════════════
+
+model MissionStep {
+  id               String   @id @default(cuid())
+  missionId        String
+  mission          Mission  @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  order            Int
+  key              String // identifiant stable utilisé par le branching
+  title            String
+  objective        String   @default("")
+  context          String   @default("")
+  instruction      String   @default("")
+  stepType         String   @default("ANALYSIS") // voir ACTION_TYPES dans src/lib/constants.ts
+  estimatedMinutes Int      @default(10)
+  isOptional       Boolean  @default(false)
+  isLocked         Boolean  @default(false) // verrouillée par le formateur
+  unlockRuleJson   String   @default("{}") // ex. {"afterStepKey":"s2"} ou {"afterDecisionOption":"..."}
+  maxScore         Int      @default(20)
+  successCriteria  String   @default("") // SERVER-ONLY
+  feedbackSuccess  String   @default("")
+  feedbackPartial  String   @default("")
+  feedbackFailure  String   @default("")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  tasks             Task[]
+  decisions         Decision[]
+  deliverables      Deliverable[]
+  resources         Resource[]
+  datasets          DataSet[]
+  skills            StepSkill[]
+  criteria          EvaluationCriteria[]
+  feedbacks         Feedback[]
+  evaluations       Evaluation[]
+  aiMessages        AIMessage[]
+  outcomesNext      DecisionOutcome[]    @relation("OutcomeNextStep")
+  outcomesUnlock    DecisionOutcome[]    @relation("OutcomeUnlockStep")
+  progressesCurrent LearnerProgress[]
+
+  @@unique([missionId, key])
+  @@index([missionId, order])
+}
+
+// Une tâche = une action évaluable (analyse, classement, association, calcul,
+// réponse courte, texte long…). `configJson` décrit l'exercice ; `answerKeyJson`
+// contient le corrigé et ne quitte jamais le serveur.
+model Task {
+  id            String      @id @default(cuid())
+  stepId        String
+  step          MissionStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  order         Int         @default(0)
+  type          String // ANALYSIS | RANKING | MATCHING | CALCULATION | SHORT_ANSWER | LONG_TEXT | MCQ | PRESENTATION
+  prompt        String
+  configJson    String      @default("{}")
+  answerKeyJson String      @default("{}") // SERVER-ONLY
+  autoGrade     Boolean     @default(false)
+  maxScore      Int         @default(10)
+  maxAttempts   Int         @default(3)
+  skillId       String?
+  skill         Skill?      @relation(fields: [skillId], references: [id])
+  createdAt     DateTime    @default(now())
+
+  answers LearnerAnswer[]
+
+  @@index([stepId, order])
 }
 
 model Decision {
-  id               String    @id @default(cuid())
-  progressId       String
-  progress         Progress  @relation(fields: [progressId], references: [id], onDelete: Cascade)
-  situationId      String
-  situation        Situation @relation(fields: [situationId], references: [id])
-  choiceId         String
-  choice           Choice    @relation(fields: [choiceId], references: [id])
-  timeTakenSeconds Int?
-  timedOut         Boolean   @default(false)
-  createdAt        DateTime  @default(now())
+  id                   String      @id @default(cuid())
+  stepId               String
+  step                 MissionStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  order                Int         @default(0)
+  title                String
+  prompt               String
+  allowMultiple        Boolean     @default(false)
+  requireJustification Boolean     @default(false)
+  maxScore             Int         @default(20)
+
+  options          DecisionOption[]
+  learnerDecisions LearnerDecision[]
+
+  @@index([stepId, order])
 }
 
-model UserSkill {
-  id         String   @id @default(cuid())
-  progressId String
-  progress   Progress @relation(fields: [progressId], references: [id], onDelete: Cascade)
-  skillId    String
-  skill      Skill    @relation(fields: [skillId], references: [id])
-  score      Int      @default(0)
+model DecisionOption {
+  id              String   @id @default(cuid())
+  decisionId      String
+  decision        Decision @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+  order           Int      @default(0)
+  label           String // "A", "B"…
+  text            String
+  costsJson       String   @default("{}") // {"budget": 38000, "time": 24} comparé aux contraintes
+  quality         String   @default("ACCEPTABLE") // SERVER-ONLY : OPTIMAL | ACCEPTABLE | RISKY | POOR
+  scoreDelta      Int      @default(0) // SERVER-ONLY
+  xpDelta         Int      @default(0)
+  skillDeltasJson String   @default("{}") // SERVER-ONLY {"skillId": 10}
 
-  @@unique([progressId, skillId])
+  outcome          DecisionOutcome?
+  learnerDecisions LearnerDecision[]
+}
+
+// Conséquence d'une option : narration, changement de contexte, ressource
+// révélée, pénalité, étape suivante (branching).
+model DecisionOutcome {
+  id                 String         @id @default(cuid())
+  optionId           String         @unique
+  option             DecisionOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  consequenceText    String // ce qui se passe
+  feedbackText       String         @default("") // explication pédagogique
+  contextUpdateText  String         @default("") // nouveau contexte injecté dans le briefing
+  variableDeltasJson String         @default("{}") // {"budgetRemaining": -8000, "teamMorale": -1}
+  penaltyPoints      Int            @default(0)
+  revealResourceId   String?
+  revealResource     Resource?      @relation(fields: [revealResourceId], references: [id])
+  unlockStepId       String?
+  unlockStep         MissionStep?   @relation("OutcomeUnlockStep", fields: [unlockStepId], references: [id])
+  nextStepId         String? // null = étape suivante dans l'ordre (parcours linéaire)
+  nextStep           MissionStep?   @relation("OutcomeNextStep", fields: [nextStepId], references: [id])
+  isTerminal         Boolean        @default(false)
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 5. RESSOURCES & DONNÉES
+// ═══════════════════════════════════════════════════════════════════════════
+
+model Resource {
+  id             String       @id @default(cuid())
+  missionId      String
+  mission        Mission      @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  stepId         String? // null = disponible pour toute la mission
+  step           MissionStep? @relation(fields: [stepId], references: [id], onDelete: SetNull)
+  title          String
+  type           String // TEXT | PDF | IMAGE | VIDEO | LINK | XLSX | DOCX | PPTX | CSV
+  content        String? // pour TEXT
+  url            String? // pour LINK / VIDEO
+  fileKey        String? // clé de stockage (stockage privé, URL signée)
+  fileName       String?
+  mimeType       String?
+  sizeBytes      Int?
+  isRequired     Boolean      @default(false)
+  unlockRuleJson String       @default("{}") // débloquée progressivement
+  order          Int          @default(0)
+  createdAt      DateTime     @default(now())
+
+  views      ResourceView[]
+  revealedBy DecisionOutcome[]
+
+  @@index([missionId, stepId])
+}
+
+model DataSet {
+  id            String       @id @default(cuid())
+  missionId     String
+  mission       Mission      @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  stepId        String?
+  step          MissionStep? @relation(fields: [stepId], references: [id], onDelete: SetNull)
+  title         String
+  description   String       @default("")
+  format        String       @default("TABLE") // TABLE | CSV | XLSX | JSON
+  columnsJson   String       @default("[]") // [{key,label,type,unit}]
+  rowsJson      String       @default("[]") // données consultables en ligne
+  fileKey       String? // fichier téléchargeable (XLSX/CSV)
+  downloadable  Boolean      @default(true)
+  anomaliesJson String       @default("[]") // SERVER-ONLY : anomalies à repérer
+  order         Int          @default(0)
+
+  @@index([missionId, stepId])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 6. LIVRABLES & ÉVALUATION
+// ═══════════════════════════════════════════════════════════════════════════
+
+model Deliverable {
+  id                   String      @id @default(cuid())
+  stepId               String
+  step                 MissionStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  title                String
+  format               String // EMAIL | REPORT | ACTION_PLAN | PRESENTATION | SPREADSHEET | MEMO | PROPOSAL | TABLE | OTHER
+  instructions         String      @default("")
+  submissionMode       String      @default("TEXT") // TEXT | UPLOAD | TEXT_OR_UPLOAD
+  minWords             Int?
+  maxWords             Int?
+  requiredElementsJson String      @default("[]") // string[]
+  acceptedMimeJson     String      @default("[]") // ["application/pdf", ...]
+  deadlineMinutes      Int?
+  maxScore             Int         @default(30)
+  isFinal              Boolean     @default(false)
+
+  criteria    EvaluationCriteria[]
+  submissions LearnerDeliverable[]
+}
+
+// Critère de grille : rattaché à une mission (bilan global), une étape ou un livrable.
+model EvaluationCriteria {
+  id            String       @id @default(cuid())
+  missionId     String?
+  mission       Mission?     @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  stepId        String?
+  step          MissionStep? @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  deliverableId String?
+  deliverable   Deliverable? @relation(fields: [deliverableId], references: [id], onDelete: Cascade)
+  label         String // Clarté, Pertinence, Exactitude, Faisabilité, Justification…
+  description   String       @default("")
+  maxPoints     Int          @default(20)
+  weight        Float        @default(1)
+  rubricJson    String       @default("[]") // SERVER-ONLY : niveaux descriptifs [{points,label,descriptor}]
+  isHidden      Boolean      @default(false) // critère non montré à l'apprenant avant évaluation
+  order         Int          @default(0)
+}
+
+// Une évaluation = un verdict sur une production. evaluatorType AI ⇒ statut
+// PROPOSED jusqu'à validation/modification/rejet par le formateur.
+model Evaluation {
+  id                   String              @id @default(cuid())
+  progressId           String
+  progress             LearnerProgress     @relation(fields: [progressId], references: [id], onDelete: Cascade)
+  stepId               String?
+  step                 MissionStep?        @relation(fields: [stepId], references: [id])
+  learnerDeliverableId String?
+  learnerDeliverable   LearnerDeliverable? @relation(fields: [learnerDeliverableId], references: [id])
+  evaluatorType        String // AUTO | AI | TRAINER
+  evaluatorUserId      String?
+  evaluatorUser        User?               @relation("EvaluationBy", fields: [evaluatorUserId], references: [id])
+  status               String              @default("PROPOSED") // PROPOSED | VALIDATED | MODIFIED | REJECTED
+  scoresJson           String              @default("{}") // {criteriaId: points}
+  totalScore           Float               @default(0)
+  maxScore             Float               @default(0)
+  comment              String              @default("")
+  aiJobId              String?
+  aiJob                AIJob?              @relation(fields: [aiJobId], references: [id])
+  createdAt            DateTime            @default(now())
+  validatedAt          DateTime?
+
+  @@index([progressId])
+}
+
+model Feedback {
+  id         String          @id @default(cuid())
+  progressId String
+  progress   LearnerProgress @relation(fields: [progressId], references: [id], onDelete: Cascade)
+  stepId     String?
+  step       MissionStep?    @relation(fields: [stepId], references: [id])
+  source     String // SYSTEM | AI | TRAINER
+  kind       String // SUCCESS | ERROR | EXPLANATION | CONSEQUENCE | RECOMMENDATION
+  content    String
+  viewedAt   DateTime?
+  createdAt  DateTime        @default(now())
+
+  @@index([progressId, stepId])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 7. COMPÉTENCES ↔ MISSION
+// ═══════════════════════════════════════════════════════════════════════════
+
+model MissionSkill {
+  id          String  @id @default(cuid())
+  missionId   String
+  mission     Mission @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  skillId     String
+  skill       Skill   @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  weight      Float   @default(1)
+  targetLevel String  @default("INTERMEDIATE")
+
+  @@unique([missionId, skillId])
+}
+
+model StepSkill {
+  id      String      @id @default(cuid())
+  stepId  String
+  step    MissionStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  skillId String
+  skill   Skill       @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([stepId, skillId])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 8. SESSIONS, ÉQUIPES, PROGRESSION APPRENANT
+// ═══════════════════════════════════════════════════════════════════════════
+
+model Session {
+  id              String       @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  missionId       String
+  mission         Mission      @relation(fields: [missionId], references: [id])
+  trainerId       String
+  trainer         User         @relation("SessionTrainer", fields: [trainerId], references: [id])
+  title           String
+  code            String       @unique // code d'accès apprenant
+  status          String       @default("OPEN") // SCHEDULED | OPEN | CLOSED | ARCHIVED
+  mode            String       @default("INDIVIDUAL") // INDIVIDUAL | TEAM
+  startsAt        DateTime?
+  endsAt          DateTime?
+  maxParticipants Int?
+  settingsJson    String       @default("{}") // overrides : coach on/off, score visible, temps limite
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  participants    SessionParticipant[]
+  teams           Team[]
+  progresses      LearnerProgress[]
+  analyticsEvents AnalyticsEvent[]
+
+  @@index([organizationId, status])
+}
+
+model SessionParticipant {
+  id        String   @id @default(cuid())
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status    String   @default("JOINED") // INVITED | JOINED | REMOVED
+  joinedAt  DateTime @default(now())
+
+  @@unique([sessionId, userId])
+}
+
+model Team {
+  id        String   @id @default(cuid())
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime @default(now())
+
+  members    TeamMember[]
+  progresses LearnerProgress[]
+}
+
+model TeamMember {
+  id     String @id @default(cuid())
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   String @default("MEMBER") // LEAD | MEMBER
+
+  @@unique([teamId, userId])
+}
+
+// Une progression = une tentative d'une mission par un apprenant (ou une équipe)
+// dans une session. Source de vérité de l'état de la mission (variables,
+// étape courante, score). Reprise possible après interruption.
+model LearnerProgress {
+  id                   String       @id @default(cuid())
+  sessionId            String
+  session              Session      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  missionId            String
+  mission              Mission      @relation(fields: [missionId], references: [id])
+  userId               String? // null en mode équipe pure
+  user                 User?        @relation(fields: [userId], references: [id])
+  teamId               String?
+  team                 Team?        @relation(fields: [teamId], references: [id])
+  status               String       @default("NOT_STARTED") // NOT_STARTED | IN_PROGRESS | COMPLETED | ABANDONED
+  currentStepId        String?
+  currentStep          MissionStep? @relation(fields: [currentStepId], references: [id])
+  completedStepIdsJson String       @default("[]")
+  unlockedStepIdsJson  String       @default("[]")
+  stateJson            String       @default("{}") // variables de mission : budgetRemaining, contexte injecté…
+  score                Float        @default(0)
+  maxScore             Float        @default(0)
+  xp                   Int          @default(0)
+  hintsUsed            Int          @default(0)
+  timeSpentSeconds     Int          @default(0)
+  startedAt            DateTime?
+  lastActivityAt       DateTime     @default(now())
+  completedAt          DateTime?
+  createdAt            DateTime     @default(now())
+
+  decisions       LearnerDecision[]
+  answers         LearnerAnswer[]
+  deliverables    LearnerDeliverable[]
+  evaluations     Evaluation[]
+  feedbacks       Feedback[]
+  resourceViews   ResourceView[]
+  aiMessages      AIMessage[]
+  xpTransactions  XPTransaction[]
+  badges          PlayerBadge[]
+  result          MissionResult?
+  aiJobs          AIJob[]
+  analyticsEvents AnalyticsEvent[]
+
+  @@unique([sessionId, userId])
+  @@index([missionId, status])
+}
+
+model LearnerDecision {
+  id                  String          @id @default(cuid())
+  progressId          String
+  progress            LearnerProgress @relation(fields: [progressId], references: [id], onDelete: Cascade)
+  decisionId          String
+  decision            Decision        @relation(fields: [decisionId], references: [id])
+  optionId            String
+  option              DecisionOption  @relation(fields: [optionId], references: [id])
+  justification       String?
+  constraintCheckJson String          @default("[]") // [{constraintKey, value, limit, exceededBy}]
+  timeTakenSeconds    Int?
+  createdAt           DateTime        @default(now())
+
+  @@index([progressId, decisionId])
+}
+
+model LearnerAnswer {
+  id           String          @id @default(cuid())
+  progressId   String
+  progress     LearnerProgress @relation(fields: [progressId], references: [id], onDelete: Cascade)
+  taskId       String
+  task         Task            @relation(fields: [taskId], references: [id])
+  attempt      Int             @default(1)
+  answerJson   String
+  isCorrect    Boolean?
+  score        Float?
+  autoFeedback String?
+  createdAt    DateTime        @default(now())
+
+  @@unique([progressId, taskId, attempt])
+}
+
+model LearnerDeliverable {
+  id            String          @id @default(cuid())
+  progressId    String
+  progress      LearnerProgress @relation(fields: [progressId], references: [id], onDelete: Cascade)
+  deliverableId String
+  deliverable   Deliverable     @relation(fields: [deliverableId], references: [id])
+  version       Int             @default(1)
+  status        String          @default("DRAFT") // DRAFT | SUBMITTED | EVALUATED
+  contentText   String?
+  fileKey       String?
+  fileName      String?
+  mimeType      String?
+  sizeBytes     Int?
+  submittedAt   DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  evaluations Evaluation[]
+
+  @@unique([progressId, deliverableId, version])
+}
+
+model ResourceView {
+  id              String          @id @default(cuid())
+  progressId      String
+  progress        LearnerProgress @relation(fields: [progressId], references: [id], onDelete: Cascade)
+  resourceId      String
+  resource        Resource        @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  openedAt        DateTime        @default(now())
+  durationSeconds Int?
+
+  @@index([progressId, resourceId])
+}
+
+// Bilan de fin de mission (synthèse pédagogique).
+model MissionResult {
+  id                   String          @id @default(cuid())
+  progressId           String          @unique
+  progress             LearnerProgress @relation(fields: [progressId], references: [id], onDelete: Cascade)
+  finalScore           Float
+  maxScore             Float
+  skillResultsJson     String // [{skillId, name, level, score}]
+  strengthsJson        String          @default("[]")
+  improvementsJson     String          @default("[]")
+  decisionsSummaryJson String          @default("[]")
+  recommendation       String          @default("")
+  timeSpentSeconds     Int             @default(0)
+  generatedBy          String          @default("SYSTEM") // SYSTEM | AI | TRAINER
+  generatedAt          DateTime        @default(now())
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 9. GAMIFICATION LÉGÈRE
+// ═══════════════════════════════════════════════════════════════════════════
+
+model Badge {
+  id             String        @id @default(cuid())
+  organizationId String? // null = badge global (MISSION STARTER, DECISION MAKER…)
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  code           String
+  name           String
+  description    String
+  icon           String        @default("award")
+  criteriaType   String // FIRST_MISSION | DECISIONS_COUNT | PROBLEMS_SOLVED | STRATEGIC_MISSION | PERFECT_MISSION | NO_HINT_MISSION
+  criteriaJson   String        @default("{}")
+
+  awards PlayerBadge[]
+
+  @@unique([organizationId, code])
+}
+
+model PlayerBadge {
+  id         String           @id @default(cuid())
+  userId     String
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badgeId    String
+  badge      Badge            @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  progressId String?
+  progress   LearnerProgress? @relation(fields: [progressId], references: [id])
+  earnedAt   DateTime         @default(now())
+
+  @@unique([userId, badgeId])
 }
 
 model XPTransaction {
-  id         String   @id @default(cuid())
-  progressId String
-  progress   Progress @relation(fields: [progressId], references: [id], onDelete: Cascade)
+  id         String           @id @default(cuid())
+  userId     String
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  progressId String?
+  progress   LearnerProgress? @relation(fields: [progressId], references: [id])
   amount     Int
-  reason     String
-  createdAt  DateTime @default(now())
+  reason     String // STEP_COMPLETED | DECISION | DELIVERABLE | MISSION_COMPLETED | AUTONOMY_BONUS | HINT_PENALTY
+  createdAt  DateTime         @default(now())
+
+  @@index([userId])
 }
 
-model Badge {
-  id           String      @id @default(cuid())
-  simulationId String
-  simulation   Simulation  @relation(fields: [simulationId], references: [id], onDelete: Cascade)
-  code         String
-  name         String
-  description  String
-  icon         String
-  criteriaType String      // e.g. "first_decision", "mission_complete", "perfect_mission", "skill_threshold"
-  criteriaValue String?    // free-form parameter for the criteria (e.g. mission order, skill name+score)
+// ═══════════════════════════════════════════════════════════════════════════
+// 10. IA (jobs traçables, messages du coach, imports de cours)
+// ═══════════════════════════════════════════════════════════════════════════
 
-  userBadges UserBadge[]
+// Toute sollicitation d'un fournisseur IA passe par un AIJob : traçabilité,
+// coût, reproductibilité, et review humaine avant toute publication.
+model AIJob {
+  id             String           @id @default(cuid())
+  organizationId String
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User             @relation(fields: [userId], references: [id])
+  type           String // ANALYZE_COURSE | GENERATE_MISSION | GENERATE_SCENARIO | GENERATE_STEPS | GENERATE_DECISION | GENERATE_FEEDBACK | EVALUATE_DELIVERABLE | COACH_RESPONSE | LEARNING_REPORT
+  status         String           @default("QUEUED") // QUEUED | RUNNING | SUCCEEDED | FAILED | REVIEWED | REJECTED
+  provider       String // stub | anthropic | openai | …
+  model          String?
+  inputJson      String // entrée APRÈS filtrage / anonymisation
+  outputJson     String? // sortie structurée validée par Zod
+  error          String?
+  tokensIn       Int?
+  tokensOut      Int?
+  costCents      Int?
+  missionId      String?
+  mission        Mission?         @relation(fields: [missionId], references: [id], onDelete: SetNull)
+  progressId     String?
+  progress       LearnerProgress? @relation(fields: [progressId], references: [id], onDelete: SetNull)
+  createdAt      DateTime         @default(now())
+  completedAt    DateTime?
 
-  @@unique([simulationId, code])
+  evaluations Evaluation[]
+  messages    AIMessage[]
+
+  @@index([organizationId, type, createdAt])
 }
 
-model UserBadge {
-  id         String   @id @default(cuid())
+model AIMessage {
+  id         String          @id @default(cuid())
   progressId String
-  progress   Progress @relation(fields: [progressId], references: [id], onDelete: Cascade)
-  badgeId    String
-  badge      Badge    @relation(fields: [badgeId], references: [id])
-  earnedAt   DateTime @default(now())
+  progress   LearnerProgress @relation(fields: [progressId], references: [id], onDelete: Cascade)
+  stepId     String?
+  step       MissionStep?    @relation(fields: [stepId], references: [id])
+  role       String // LEARNER | COACH
+  content    String
+  helpLevel  Int? // 1 question de réflexion … 5 aide directe
+  jobId      String?
+  job        AIJob?          @relation(fields: [jobId], references: [id])
+  createdAt  DateTime        @default(now())
 
-  @@unique([progressId, badgeId])
+  @@index([progressId, createdAt])
 }
 
-model Report {
-  id            String   @id @default(cuid())
-  progressId    String   @unique
-  progress      Progress @relation(fields: [progressId], references: [id], onDelete: Cascade)
-  globalScore   Int
-  strengths     String   // JSON string[]
-  improvements  String   // JSON string[]
-  keyDecisions  String   // JSON [{situation, choice, impact}]
-  recommendation String
-  generatedAt   DateTime @default(now())
+model CourseImport {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id])
+  title          String
+  sourceType     String // PDF | DOCX | PPTX | TXT | CSV | URL | PASTE
+  fileKey        String?
+  url            String?
+  rawText        String       @default("")
+  analysisJson   String       @default("{}") // concepts, compétences, objectifs, procédures, exemples
+  status         String       @default("UPLOADED") // UPLOADED | EXTRACTED | ANALYZED | FAILED
+  createdAt      DateTime     @default(now())
+
+  missions Mission[]
 }
 
-model AIInteraction {
-  id        String             @id @default(cuid())
-  userId    String?
-  user      User?              @relation(fields: [userId], references: [id])
-  type      String            
-  input     String             // JSON
-  output    String             // JSON
-  createdAt DateTime           @default(now())
+// ═══════════════════════════════════════════════════════════════════════════
+// 11. PARCOURS MULTI-MISSIONS
+// ═══════════════════════════════════════════════════════════════════════════
+
+model LearningPath {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdById    String
+  createdBy      User         @relation(fields: [createdById], references: [id])
+  title          String
+  description    String       @default("")
+  status         String       @default("DRAFT") // DRAFT | PUBLISHED | ARCHIVED
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  items LearningPathItem[]
+}
+
+model LearningPathItem {
+  id             String       @id @default(cuid())
+  pathId         String
+  path           LearningPath @relation(fields: [pathId], references: [id], onDelete: Cascade)
+  missionId      String
+  mission        Mission      @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  order          Int
+  kind           String       @default("APPLICATION") // DISCOVERY | APPLICATION | COMPLEX | SIMULATION | FINAL
+  unlockRuleJson String       @default("{}") // ex. {"requiresCompleted":["missionId"]}
+
+  @@unique([pathId, missionId])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 12. ANALYTICS & AUDIT
+// ═══════════════════════════════════════════════════════════════════════════
+
+model AnalyticsEvent {
+  id             String           @id @default(cuid())
+  name           String // voir src/lib/analytics/events.ts
+  organizationId String?
+  organization   Organization?    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String?
+  user           User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  sessionId      String?
+  session        Session?         @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  progressId     String?
+  progress       LearnerProgress? @relation(fields: [progressId], references: [id], onDelete: SetNull)
+  missionId      String?
+  propertiesJson String           @default("{}")
+  createdAt      DateTime         @default(now())
+
+  @@index([name, createdAt])
+  @@index([organizationId, missionId])
+}
+
+model AuditLog {
+  id             String        @id @default(cuid())
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String?
+  user           User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action         String // ex. "mission.publish", "evaluation.validate", "member.role_change"
+  targetType     String
+  targetId       String
+  metaJson       String        @default("{}")
+  ipHash         String?
+  createdAt      DateTime      @default(now())
+
+  @@index([organizationId, createdAt])
 }

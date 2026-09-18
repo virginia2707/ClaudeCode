@@ -1,89 +1,67 @@
-# The Apprentice
+# MissionIA
 
-Simulation professionnelle gamifiée par IA — transformez un contenu pédagogique en
-simulation professionnelle interactive : l'apprenant entre dans un métier, reçoit une
-mission, prend des décisions et progresse au fil d'un scénario.
+Plateforme SaaS qui transforme des cours classiques en **parcours pédagogiques basés sur des missions professionnelles** :
 
-Ce dépôt contient le **MVP fonctionnel** : un formateur peut créer une simulation
-complète (métier, compétences, missions, situations, choix, conséquences), la publier,
-et un apprenant peut la rejoindre avec un code d'accès, la jouer du début à la fin, et
-recevoir un rapport de performance individuel. Le formateur dispose d'un tableau de bord
-statistique agrégé.
+`MISSION → PROBLÈME → ANALYSE → DÉCISION → ACTION → LIVRABLE → FEEDBACK → COMPÉTENCES`
 
-## Stack technique
+L'apprenant est placé dans une situation professionnelle réaliste ; le formateur garde le contrôle éditorial ; l'IA accélère la conception sans jamais publier seule.
 
-- **Next.js 16** (App Router, React 19, Server Actions, TypeScript) — un seul projet
-  full-stack : pages, API et logique métier au même endroit, adapté au déploiement web.
-- **Prisma + SQLite** — base de données relationnelle, zéro infrastructure externe pour
-  démarrer. Basculer vers Postgres en production ne demande qu'un changement de
-  `provider`/`url` dans `prisma/schema.prisma`.
-- **Tailwind CSS v4** — design system minimal (`src/app/globals.css`) : palette sombre,
-  premium, sans esthétique "jeu vidéo pour enfants".
-- **jsonwebtoken + bcryptjs** — authentification par session JWT en cookie httpOnly,
-  sans dépendance à un fournisseur d'auth tiers.
-- **`AIService`** (`src/lib/ai/ai-service.ts`) — une seule interface `AIProvider` sépare
-  toute la plateforme d'un fournisseur d'IA donné. Le MVP embarque un `StubAIProvider`
-  déterministe (aucune clé API, aucun coût, fonctionne hors-ligne) ; un vrai fournisseur
-  (Anthropic, OpenAI, …) peut être branché sans toucher aux appelants.
+## État du projet
+
+Développement par phases (méthode RCTFC). **Phase 1 terminée** : architecture, design system, landing page. Voir `docs/03-development-plan.md` pour le détail et le rapport de phase.
+
+| Document | Contenu |
+|---|---|
+| `docs/00-research.md` | Problème, personas, proposition de valeur, MVP vs reporté, risques |
+| `docs/01-architecture.md` | Stack, SaaS, permissions, parcours, moteur de missions, décisions, livrables, évaluation, IA, sécurité, pages, composants |
+| `docs/02-data-model.md` | Modèle de données (42 modèles) et règles d'intégrité |
+| `docs/03-development-plan.md` | Les 20 phases et les rapports DONE / NOT DONE |
+
+## Stack
+
+Next.js 16 (App Router, React 19, TypeScript) · Tailwind CSS v4 + tokens sémantiques · Prisma 5 (SQLite en dev, PostgreSQL en prod) · Vitest · Playwright + axe-core.
 
 ## Démarrage
 
 ```bash
 npm install
-cp .env.example .env   # puis éditez JWT_SECRET si besoin
-npx prisma migrate dev
-npm run seed            # crée les comptes de démo + la simulation "Hotel Aurora"
-npm run dev
+cp .env.example .env
+npx prisma migrate dev      # crée la base SQLite locale
+npm run dev                 # http://localhost:3000
 ```
 
-### Comptes de démonstration (mot de passe entre parenthèses)
+Pages disponibles en phase 1 : `/` (landing), `/demo` (aperçu de l'écran apprenant), `/design-system`.
 
-| Rôle       | Email                         | Mot de passe     |
-|------------|-------------------------------|-------------------|
-| Admin      | admin@apprentice.dev          | `Admin1234!`      |
-| Formateur  | formateur@apprentice.dev      | `Formateur1234!`  |
-| Apprenant  | apprenant@apprentice.dev      | `Apprenant1234!`  |
+## Scripts
 
-Code d'accès de la simulation de démonstration (« Assistant Manager — Hôtel 4
-étoiles ») : **`AURORA26`**. La page `/demo` la présente publiquement sans connexion.
+```bash
+npm run lint        # ESLint
+npm run typecheck   # tsc --noEmit
+npm test            # tests unitaires (Vitest)
+npm run build       # build de production
+npm run test:e2e    # Playwright (lance `next start` sur le port 3100 ; nécessite un build préalable)
+```
 
-## Architecture des données
+En environnement sans téléchargement de navigateur, définissez `PLAYWRIGHT_CHROMIUM_PATH` vers un Chromium existant.
 
-Voir `prisma/schema.prisma`. SQLite ne supportant pas les enums côté Prisma, les
-valeurs de type enum (rôles, statuts, difficultés…) sont des `String` contraintes par
-convention — la liste canonique vit dans `src/lib/constants.ts`.
+## Structure
 
-Entités principales : `User`, `Simulation`, `Skill`, `Mission`, `Situation`, `Choice`,
-`Consequence`, `Progress` (session de jeu d'un apprenant), `Decision`, `UserSkill`,
-`XPTransaction`, `Badge`, `UserBadge`, `Report`, `AIInteraction`.
+```
+docs/                    recherche, architecture, modèle de données, plan
+prisma/                  schema.prisma + migrations
+src/app/                 routes (App Router) — (marketing)/ : landing, demo, design-system, login, register
+src/components/ui/       design system (Button, Card, Badge, ProgressBar, SkillList, Field, Alert, Stat…)
+src/components/marketing/  header, footer
+src/components/demo/     aperçu interactif de décision
+src/lib/constants.ts     valeurs canoniques (rôles, plans, statuts, types)
+src/lib/authz/           matrice rôles → permissions
+src/lib/mission-engine/  registre des mécaniques, état d'exécution, vérification des contraintes
+src/lib/ai/              AIService, AIProvider, filtrage PII
+src/lib/analytics/       événements produit
+tests/unit, tests/e2e    Vitest, Playwright
+legacy/the-apprentice/   ancien prototype conservé pour référence (hors compilation)
+```
 
-## Ce qui est fonctionnel (MVP)
+## Principes produit
 
-- Comptes Admin / Formateur / Apprenant avec routes protégées par rôle.
-- Créateur de simulation : métier, contexte, compétences, missions, situations, choix
-  (3 à 5 par situation), conséquences (variables business + compétences + XP +
-  branchement optionnel vers une autre situation), badges.
-- Génération assistée par IA d'un squelette de missions (`✨ Créer avec IA`) — toujours
-  modifiable par le formateur, jamais publiée automatiquement.
-- Publication avec validation minimale + génération d'un code d'accès.
-- Parcours apprenant : rejoindre avec un code, jouer situation par situation, feedback
-  immédiat (décision / conséquence / compétences mobilisées / feedback du Coach),
-  défis à temps limité avec résolution automatique en cas d'expiration, XP, niveaux de
-  jeu, badges, scénario branché (`nextSituationId`).
-- Rapport de performance individuel (score, compétences, points forts, axes de
-  progression, décisions clés, recommandation) — explicitement présenté comme une
-  évaluation pédagogique simulée, jamais une certification.
-- Tableau de bord formateur : participants, taux de complétion, score moyen/médian, XP
-  moyen, compétences les plus/moins maîtrisées, temps moyen et décision la plus
-  fréquente par situation, taux d'abandon.
-- Simulation de démonstration complète et jouable : **Assistant Manager — Hôtel 4
-  étoiles / Hotel Aurora** (5 jours, 7 compétences, 9 badges).
-
-## Limites connues / prochaines étapes
-
-- Import de contenu (PDF/DOCX/PPTX/URL) : non implémenté, architecture prête à
-  recevoir un service d'extraction en amont de `AIService`.
-- Facturation (Stripe) : plans `FREE/PRO/BUSINESS/ENTERPRISE` modélisés et appliqués
-  (limite de simulations par plan), mais aucune intégration de paiement.
-- Événements aléatoires dynamiques : non implémentés (branchement statique via
-  `Consequence.nextSituationId` uniquement).
+PÉDAGOGIE > GAMIFICATION · APPLICATION > MÉMORISATION PASSIVE · PROBLÈMES RÉELS > QUESTIONS THÉORIQUES · COMPÉTENCES > SCORE · SIMPLICITÉ > COMPLEXITÉ · FIABILITÉ > ANIMATIONS · FORMATEUR AUX COMMANDES > IA AUTONOME.

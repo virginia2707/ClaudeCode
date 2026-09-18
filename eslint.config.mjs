@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Ancien produit conservé pour référence, hors périmètre MissionIA.
+    "legacy/**",
+    "playwright-report/**",
+    "test-results/**",
   ]),
 ]);
 

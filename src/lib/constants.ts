@@ -1,91 +1,122 @@
-// Canonical enum-like string values. SQLite has no native enum support in
-// Prisma, so these are the single source of truth used across the app —
-// keep them in sync with the comments in prisma/schema.prisma.
+// Valeurs canoniques des "enums" MissionIA.
+// SQLite ne supporte pas les enums Prisma : ces listes sont la source de vérité,
+// utilisées par les schémas Zod, les composants et les requêtes.
 
-export const ROLES = ["ADMIN", "FORMATEUR", "APPRENANT"] as const;
-export type RoleValue = (typeof ROLES)[number];
+export const ORG_ROLES = ["ADMIN", "TRAINER", "LEARNER"] as const;
+export type OrgRole = (typeof ORG_ROLES)[number];
 
 export const PLANS = ["FREE", "PRO", "BUSINESS", "ENTERPRISE"] as const;
-export type PlanValue = (typeof PLANS)[number];
+export type Plan = (typeof PLANS)[number];
 
-export const SIMULATION_STATUSES = ["DRAFT", "PUBLISHED", "ARCHIVED"] as const;
-export type SimulationStatusValue = (typeof SIMULATION_STATUSES)[number];
-
-export const DIFFICULTIES = ["EASY", "MEDIUM", "HARD", "EXPERT"] as const;
-export type DifficultyValue = (typeof DIFFICULTIES)[number];
-
-export const PROGRESS_STATUSES = ["IN_PROGRESS", "COMPLETED", "ABANDONED"] as const;
-export type ProgressStatusValue = (typeof PROGRESS_STATUSES)[number];
-
-export const AI_INTERACTION_TYPES = [
-  "GENERATE_SIMULATION",
-  "COACH_HINT",
-  "GENERATE_FEEDBACK",
-  "GENERATE_REPORT",
-] as const;
-export type AIInteractionTypeValue = (typeof AI_INTERACTION_TYPES)[number];
-
-export const PLAN_LIMITS: Record<PlanValue, { simulations: number | null; learners: number | null }> = {
-  FREE: { simulations: 1, learners: 10 },
-  PRO: { simulations: null, learners: 100 },
-  BUSINESS: { simulations: null, learners: null },
-  ENTERPRISE: { simulations: null, learners: null },
+export const PLAN_LIMITS: Record<
+  Plan,
+  { missions: number | null; trainers: number | null; ai: boolean; analytics: "basic" | "advanced" }
+> = {
+  FREE: { missions: 3, trainers: 1, ai: false, analytics: "basic" },
+  PRO: { missions: null, trainers: 1, ai: true, analytics: "basic" },
+  BUSINESS: { missions: null, trainers: null, ai: true, analytics: "advanced" },
+  ENTERPRISE: { missions: null, trainers: null, ai: true, analytics: "advanced" },
 };
 
-// XP levels — game levels, never presented as a professional qualification.
+export const MISSION_STATUSES = ["DRAFT", "IN_REVIEW", "PUBLISHED", "ARCHIVED"] as const;
+export type MissionStatus = (typeof MISSION_STATUSES)[number];
+
+export const LEVELS = ["BEGINNER", "INTERMEDIATE", "ADVANCED", "EXPERT"] as const;
+export type Level = (typeof LEVELS)[number];
+export const LEVEL_LABELS: Record<Level, string> = {
+  BEGINNER: "Débutant",
+  INTERMEDIATE: "Intermédiaire",
+  ADVANCED: "Avancé",
+  EXPERT: "Expert",
+};
+
+export const MISSION_MODES = ["INDIVIDUAL", "TEAM"] as const;
+export type MissionMode = (typeof MISSION_MODES)[number];
+
+export const SCORING_MODES = ["SCORE_AND_SKILLS", "SKILLS_ONLY"] as const;
+export type ScoringMode = (typeof SCORING_MODES)[number];
+
+export const CONSTRAINT_TYPES = ["BUDGET", "TIME", "TEAM", "TARGET", "RISK", "CUSTOM"] as const;
+export type ConstraintType = (typeof CONSTRAINT_TYPES)[number];
+export const CONSTRAINT_OPERATORS = ["MAX", "MIN", "EQ"] as const;
+
+export const RESOURCE_TYPES = ["TEXT", "PDF", "IMAGE", "VIDEO", "LINK", "XLSX", "DOCX", "PPTX", "CSV"] as const;
+export type ResourceType = (typeof RESOURCE_TYPES)[number];
+
+export const DELIVERABLE_FORMATS = [
+  "EMAIL",
+  "REPORT",
+  "ACTION_PLAN",
+  "PRESENTATION",
+  "SPREADSHEET",
+  "MEMO",
+  "PROPOSAL",
+  "TABLE",
+  "OTHER",
+] as const;
+export type DeliverableFormat = (typeof DELIVERABLE_FORMATS)[number];
+
+export const UPLOAD_MIME_TYPES: Record<string, string> = {
+  "application/pdf": "PDF",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "DOCX",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "XLSX",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation": "PPTX",
+  "text/csv": "CSV",
+  "text/plain": "TXT",
+};
+export const UPLOAD_MAX_BYTES = 20 * 1024 * 1024;
+
+export const EVALUATOR_TYPES = ["AUTO", "AI", "TRAINER"] as const;
+export const EVALUATION_STATUSES = ["PROPOSED", "VALIDATED", "MODIFIED", "REJECTED"] as const;
+
+export const FEEDBACK_KINDS = ["SUCCESS", "ERROR", "EXPLANATION", "CONSEQUENCE", "RECOMMENDATION"] as const;
+export type FeedbackKind = (typeof FEEDBACK_KINDS)[number];
+
+export const PROGRESS_STATUSES = ["NOT_STARTED", "IN_PROGRESS", "COMPLETED", "ABANDONED"] as const;
+export type ProgressStatus = (typeof PROGRESS_STATUSES)[number];
+
+export const SESSION_STATUSES = ["SCHEDULED", "OPEN", "CLOSED", "ARCHIVED"] as const;
+
+export const AI_JOB_TYPES = [
+  "ANALYZE_COURSE",
+  "GENERATE_MISSION",
+  "GENERATE_SCENARIO",
+  "GENERATE_STEPS",
+  "GENERATE_DECISION",
+  "GENERATE_FEEDBACK",
+  "EVALUATE_DELIVERABLE",
+  "COACH_RESPONSE",
+  "LEARNING_REPORT",
+] as const;
+export type AIJobType = (typeof AI_JOB_TYPES)[number];
+
+// Niveaux d'aide du coach IA : du plus socratique au plus direct.
+export const COACH_HELP_LEVELS = [
+  { level: 1, label: "Question de réflexion" },
+  { level: 2, label: "Indice" },
+  { level: 3, label: "Explication d'un concept" },
+  { level: 4, label: "Exemple similaire" },
+  { level: 5, label: "Aide plus directe" },
+] as const;
+
+export const BADGE_CRITERIA = [
+  { code: "MISSION_STARTER", name: "Mission Starter", description: "Première mission terminée.", criteriaType: "FIRST_MISSION" },
+  { code: "DECISION_MAKER", name: "Decision Maker", description: "10 décisions prises.", criteriaType: "DECISIONS_COUNT" },
+  { code: "PROBLEM_SOLVER", name: "Problem Solver", description: "5 problèmes résolus.", criteriaType: "PROBLEMS_SOLVED" },
+  { code: "STRATEGIST", name: "Strategist", description: "Mission stratégique terminée.", criteriaType: "STRATEGIC_MISSION" },
+  { code: "PERFECT_MISSION", name: "Perfect Mission", description: "Tous les objectifs atteints.", criteriaType: "PERFECT_MISSION" },
+] as const;
+
 export const XP_LEVELS = [
-  { level: 1, name: "Newcomer", min: 0, max: 499 },
-  { level: 2, name: "Apprentice", min: 500, max: 999 },
-  { level: 3, name: "Professional", min: 1000, max: 1999 },
-  { level: 4, name: "Expert", min: 2000, max: 3499 },
-  { level: 5, name: "Master", min: 3500, max: Infinity },
+  { level: 1, name: "Analyste junior", min: 0 },
+  { level: 2, name: "Chargé de mission", min: 500 },
+  { level: 3, name: "Responsable", min: 1200 },
+  { level: 4, name: "Directeur de mission", min: 2500 },
+  { level: 5, name: "Stratège", min: 4500 },
 ] as const;
 
 export function levelForXP(xp: number) {
-  return XP_LEVELS.find((l) => xp >= l.min && xp <= l.max) ?? XP_LEVELS[XP_LEVELS.length - 1];
+  let current: (typeof XP_LEVELS)[number] = XP_LEVELS[0];
+  for (const l of XP_LEVELS) if (xp >= l.min) current = l;
+  return current;
 }
-
-// Pedagogical proficiency labels for the skill radar — explicitly not a
-// certification, see section 10 of the product spec.
-export function proficiencyLabel(score: number) {
-  if (score >= 80) return "avancé";
-  if (score >= 50) return "intermédiaire";
-  if (score >= 25) return "débutant";
-  return "novice";
-}
-
-export const DEFAULT_VARIABLES = [
-  "customer_satisfaction",
-  "team_morale",
-  "company_reputation",
-  "operational_performance",
-  "financial_impact",
-  "leadership",
-  "communication",
-  "problem_solving",
-  "decision_making",
-  "stress_management",
-] as const;
-
-export const VARIABLE_LABELS: Record<string, string> = {
-  customer_satisfaction: "Satisfaction client",
-  team_morale: "Moral de l'équipe",
-  company_reputation: "Réputation",
-  operational_performance: "Performance opérationnelle",
-  financial_impact: "Impact financier",
-  leadership: "Leadership",
-  communication: "Communication",
-  problem_solving: "Résolution de problème",
-  decision_making: "Prise de décision",
-  stress_management: "Gestion du stress",
-};
-
-export const BADGE_CRITERIA_TYPES = [
-  "first_decision",
-  "first_mission",
-  "mission_complete",
-  "perfect_mission",
-  "simulation_complete",
-  "skill_threshold",
-  "fast_decision",
-] as const;
