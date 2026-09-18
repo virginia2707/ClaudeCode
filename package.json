@@ -12,7 +12,7 @@
     "seed": "tsx prisma/seed.ts",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
-    "test:e2e": "node tests/e2e/auth.mjs && node tests/e2e/dashboard.mjs && node tests/e2e/game-form.mjs && node tests/e2e/step-builder.mjs",
+    "test:e2e": "node tests/e2e/auth.mjs && node tests/e2e/dashboard.mjs && node tests/e2e/game-form.mjs && node tests/e2e/step-builder.mjs && node tests/e2e/session.mjs",
     "seed:fixtures": "tsx tests/fixtures/seed-test-games.ts"
   },
   "prisma": {
@@ -36,6 +36,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.5",
+    "jsqr": "^1.4.0",
     "prisma": "^5.22.0",
     "tailwindcss": "^4",
     "tsx": "^4.23.13",

@@ -336,6 +336,8 @@ model PlayerProgress {
   team             Team?          @relation("TeamProgressActor", fields: [teamId], references: [id], onDelete: Cascade)
   status           String         @default("NOT_STARTED") // NOT_STARTED | IN_PROGRESS | COMPLETED | ABANDONED | TIMED_OUT
   currentStepId    String?
+  trainerUnlocks   String         @default("[]") // JSON string[] : étapes débloquées manuellement par le formateur
+  unlockedCodes    String         @default("[]") // JSON string[] : codes obtenus ou saisis par l'acteur
   stepStates       String         @default("{}") // JSON { [stepId]: { state, startedAt, completedAt, attempts, hintsUsed } }
   score            Int            @default(0)
   hintsUsed        Int            @default(0)

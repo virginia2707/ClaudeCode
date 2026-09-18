@@ -1,5 +1,9 @@
 // Scénario E2E dashboard formateur (PHASE 3). Prérequis : serveur démarré, `npm run seed` et `npx tsx tests/fixtures/seed-test-games.ts`.
+import { execFileSync } from "node:child_process";
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE ?? "playwright");
+
+// Réinitialise les jeux de test : les compteurs de ce scénario sont absolus.
+if (process.env.SEED !== "0") execFileSync("npx", ["tsx", "tests/fixtures/seed-test-games.ts"], { stdio: "inherit" });
 const base = process.env.BASE ?? "http://localhost:3100";
 const browser = await chromium.launch(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {});
 const results = [];
@@ -46,13 +50,13 @@ const validUrl = page.url();
 check("valid game has no blocking error", !(await page.textContent("main")).includes("aucune réponse acceptée"));
 await page.locator("button", { hasText: "Publier" }).click();
 await page.waitForSelector("main [role=status]:has-text('publié')", { timeout: 30000 });
-await page.waitForFunction(() => document.body.innerText.includes("Lancer une session"), null, { timeout: 30000 });
+await page.waitForFunction(() => document.body.textContent.includes("Lancer une session"), null, { timeout: 30000 });
 check("game published: launch button visible", true);
 await shot(page, "e2e-game-overview.png", { fullPage: true });
 
 // Unpublish
 await page.locator("button", { hasText: "Dépublier" }).click();
-await page.waitForFunction(() => document.body.innerText.includes("repassé en brouillon"), null, { timeout: 30000 });
+await page.waitForFunction(() => document.body.textContent.includes("repassé en brouillon"), null, { timeout: 30000 });
 check("unpublish works", true);
 
 // Duplicate -> redirect to copy
@@ -64,10 +68,10 @@ const copyUrl = page.url();
 
 // Plan limit: PRO unlimited -> fine. Archive the copy, restore it, delete it.
 await page.locator("button", { hasText: "Archiver" }).click();
-await page.waitForFunction(() => document.body.innerText.includes("archivé"), null, { timeout: 30000 });
+await page.waitForFunction(() => document.body.textContent.includes("archivé"), null, { timeout: 30000 });
 check("archive works", true);
 await page.locator("button", { hasText: "Restaurer" }).click();
-await page.waitForFunction(() => document.body.innerText.includes("restauré"), null, { timeout: 30000 });
+await page.waitForFunction(() => document.body.textContent.includes("restauré"), null, { timeout: 30000 });
 check("restore works", true);
 await page.locator("button", { hasText: "Supprimer" }).click();
 await page.waitForURL(/\/app\/games\?deleted=1/, { timeout: 30000 });
@@ -90,16 +94,16 @@ await page.goto(base + "/app/skills", { waitUntil: "load" });
 const skillName = "Compétence test " + Date.now();
 await page.fill("#name", skillName); await page.fill("#category", "Test");
 await page.click("main form button[type=submit]");
-await page.waitForFunction((n) => document.body.innerText.includes(n), skillName, { timeout: 30000 });
+await page.waitForFunction((n) => document.body.textContent.includes(n), skillName, { timeout: 30000 });
 check("skill created", true);
 await page.fill("#name", skillName);
 await page.click("main form button[type=submit]");
-await page.waitForFunction(() => document.body.innerText.includes("existe déjà"), null, { timeout: 30000 });
+await page.waitForFunction(() => document.body.textContent.includes("existe déjà"), null, { timeout: 30000 });
 check("duplicate skill rejected", true);
 const usedRow = page.locator("li", { hasText: "SOMME et calculs" });
 check("used skill delete disabled", await usedRow.locator("button").isDisabled());
 await page.locator("li", { hasText: skillName }).locator("button").click();
-await page.waitForFunction((n) => !document.body.innerText.includes(n), skillName, { timeout: 30000 });
+await page.waitForFunction((n) => !document.body.textContent.includes(n), skillName, { timeout: 30000 });
 check("skill deleted", true);
 await shot(page, "e2e-skills.png");
 
@@ -107,19 +111,19 @@ await shot(page, "e2e-skills.png");
 await page.goto(base + "/app/settings", { waitUntil: "load" });
 await page.fill("#firstName", "Camille2");
 await page.locator("form", { hasText: "Profil" }).locator("button[type=submit]").click();
-await page.waitForFunction(() => document.body.innerText.includes("Profil mis à jour"), null, { timeout: 30000 });
+await page.waitForFunction(() => document.body.textContent.includes("Profil mis à jour"), null, { timeout: 30000 });
 check("profile updated", (await page.textContent("aside")).includes("Camille2"));
 await page.fill("#firstName", "Camille");
 await page.locator("form", { hasText: "Profil" }).locator("button[type=submit]").click();
-await page.waitForFunction(() => document.querySelector("aside")?.innerText.includes("Camille Formatrice"), null, { timeout: 30000 });
+await page.waitForFunction(() => document.querySelector("aside")?.textContent?.includes("Camille Formatrice"), null, { timeout: 30000 });
 const pw = page.locator("form", { hasText: "Mot de passe" });
 await pw.locator("#current").fill("wrong"); await pw.locator("#next").fill("Formateur1234!"); await pw.locator("#confirm").fill("Formateur1234!");
 await pw.locator("button[type=submit]").click();
-await page.waitForFunction(() => document.body.innerText.includes("actuel incorrect"), null, { timeout: 30000 });
+await page.waitForFunction(() => document.body.textContent.includes("actuel incorrect"), null, { timeout: 30000 });
 check("wrong current password rejected", true);
 await pw.locator("#current").fill("Formateur1234!"); await pw.locator("#next").fill("Formateur1234!"); await pw.locator("#confirm").fill("Formateur1234!");
 await pw.locator("button[type=submit]").click();
-await page.waitForFunction(() => document.body.innerText.includes("Mot de passe modifié"), null, { timeout: 30000 });
+await page.waitForFunction(() => document.body.textContent.includes("Mot de passe modifié"), null, { timeout: 30000 });
 check("password changed", true);
 
 // Sessions page empty state

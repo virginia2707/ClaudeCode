@@ -35,20 +35,20 @@ check("add step", true);
 // Réordonner : descendre la première
 const firstTitle = await page.locator("ol[aria-label='Étapes de la mission'] > li").first().locator("a").first().textContent();
 await page.locator("button[aria-label=\"Descendre l'étape 1\"]").click();
-await page.waitForFunction((t) => document.querySelectorAll("ol[aria-label='Étapes de la mission'] > li")[1]?.innerText.includes(t), firstTitle, { timeout: 30000 });
+await page.waitForFunction((t) => document.querySelectorAll("ol[aria-label='Étapes de la mission'] > li")[1]?.textContent?.includes(t), firstTitle, { timeout: 30000 });
 check("reorder moves step down", true);
 // Attendre la confirmation serveur avant de recharger (l'affichage est optimiste).
-await page.waitForFunction(() => document.body.innerText.includes("Ordre enregistré"), null, { timeout: 30000 });
+await page.waitForFunction(() => document.body.textContent.includes("Ordre enregistré"), null, { timeout: 30000 });
 await page.reload({ waitUntil: "load" });
 const afterReload = await page.locator("ol[aria-label='Étapes de la mission'] > li").nth(1).textContent();
 check("reorder persisted after reload", afterReload.includes(firstTitle.trim()), afterReload.slice(0, 40));
 
 // Dupliquer puis supprimer la copie
 await page.locator("ol[aria-label='Étapes de la mission'] > li").first().locator("button", { hasText: "Dupliquer" }).click();
-await page.waitForFunction(() => document.body.innerText.includes("(copie)"), null, { timeout: 30000 });
+await page.waitForFunction(() => document.body.textContent.includes("(copie)"), null, { timeout: 30000 });
 check("duplicate step", (await page.locator("ol[aria-label='Étapes de la mission'] > li").count()) === 4);
 await page.locator("li", { hasText: "(copie)" }).locator("button", { hasText: "Supprimer" }).click();
-await page.waitForFunction(() => !document.body.innerText.includes("(copie)"), null, { timeout: 30000 });
+await page.waitForFunction(() => !document.body.textContent.includes("(copie)"), null, { timeout: 30000 });
 check("delete step", (await page.locator("ol[aria-label='Étapes de la mission'] > li").count()) === 3);
 await shot(page, "e2e-step-builder.png", { fullPage: true });
 
@@ -83,7 +83,7 @@ await page.fill("#unlockCode", "4729");
 await page.fill("#points", "150");
 await page.check("input[name=isFinal]");
 await page.click("main form button[type=submit]");
-await page.waitForFunction(() => document.body.innerText.includes("Étape enregistrée"), null, { timeout: 30000 });
+await page.waitForFunction(() => document.body.textContent.includes("Étape enregistrée"), null, { timeout: 30000 });
 check("step saved with MCQ, hint, skill", true);
 
 // Rechargement : tout est persisté
@@ -108,7 +108,7 @@ await page.waitForSelector("#ord-i1", { timeout: 10000 });
 await page.fill("#ord-i1", "Ouvrir le fichier");
 await page.fill("#ord-i2", "Corriger la formule");
 await page.click("main form button[type=submit]");
-await page.waitForFunction(() => document.body.innerText.includes("Étape enregistrée"), null, { timeout: 30000 });
+await page.waitForFunction(() => document.body.textContent.includes("Étape enregistrée"), null, { timeout: 30000 });
 await page.reload({ waitUntil: "load" });
 check("ordering saved and reloaded", (await page.inputValue("#puzzleTypeSelect")) === "ORDERING" && (await page.inputValue("#ord-i1")) === "Ouvrir le fichier");
 

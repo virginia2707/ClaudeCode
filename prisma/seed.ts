@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { SYSTEM_BADGES } from "../src/lib/engine/badges";
 
 const prisma = new PrismaClient();
 
@@ -18,7 +19,18 @@ async function main() {
       create: { email: a.email, passwordHash, firstName: a.firstName, lastName: a.lastName, role: a.role, plan: a.plan },
     });
   }
+  // Badges système, communs à tous les Escape Games.
+  for (const badge of SYSTEM_BADGES) {
+    const existing = await prisma.badge.findFirst({ where: { code: badge.code, gameId: null, isSystem: true } });
+    if (existing) {
+      await prisma.badge.update({ where: { id: existing.id }, data: { ...badge, isSystem: true } });
+    } else {
+      await prisma.badge.create({ data: { ...badge, isSystem: true } });
+    }
+  }
+
   console.log(`Comptes de démonstration : ${DEMO_ACCOUNTS.map((a) => a.email).join(", ")}`);
+  console.log(`Badges système : ${SYSTEM_BADGES.map((b) => b.code).join(", ")}`);
 }
 
 main()

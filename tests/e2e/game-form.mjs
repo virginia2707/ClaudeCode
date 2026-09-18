@@ -1,5 +1,9 @@
 // Scénario E2E création / modification / réglages d'un Escape Game (PHASE 4) + upload.
+import { execFileSync } from "node:child_process";
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE ?? "playwright");
+
+// Réinitialise les jeux de test pour repartir d'un état connu.
+if (process.env.SEED !== "0") execFileSync("npx", ["tsx", "tests/fixtures/seed-test-games.ts"], { stdio: "inherit" });
 const base = process.env.BASE ?? "http://localhost:3100";
 const browser = await chromium.launch(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {});
 const results = [];
@@ -77,7 +81,7 @@ await page.goto(base + `/app/games/${gameId}/edit`, { waitUntil: "load" });
 check("edit form prefilled", (await page.inputValue("#title")) === title && (await page.inputValue("#targetSkills")).includes("Références absolues"));
 await page.fill("#title", title + " (modifié)");
 await page.click("main form button[type=submit]");
-await page.waitForFunction(() => document.body.innerText.includes("Modifications enregistrées"), null, { timeout: 30000 });
+await page.waitForFunction(() => document.body.textContent.includes("Modifications enregistrées"), null, { timeout: 30000 });
 await page.goto(base + `/app/games/${gameId}`, { waitUntil: "load" });
 check("edit persisted", (await page.textContent("h1")).includes("(modifié)"));
 await shot(page, "e2e-game-form-edit.png", { fullPage: true });
@@ -96,7 +100,7 @@ await page.fill("#maxMinutes", "60");
 await page.uncheck("input[name=timeBonusEnabled]");
 await page.selectOption("#leaderboardMethod", "SCORE");
 await page.click("main form button[type=submit]");
-await page.waitForFunction(() => document.body.innerText.includes("Réglages enregistrés"), null, { timeout: 30000 });
+await page.waitForFunction(() => document.body.textContent.includes("Réglages enregistrés"), null, { timeout: 30000 });
 await page.goto(base + `/app/games/${gameId}/settings`, { waitUntil: "load" });
 check("settings persisted", (await page.inputValue("#maxMinutes")) === "60" && !(await page.isChecked("input[name=timeBonusEnabled]")) && (await page.inputValue("#leaderboardMethod")) === "SCORE");
 await shot(page, "e2e-settings.png", { fullPage: true });
@@ -108,7 +112,7 @@ await page.setInputFiles("input[type=file]", { name: "cover.png", mimeType: "ima
 await page.waitForSelector("img[src^='/api/files/']", { timeout: 30000 });
 check("cover upload widget shows preview", true);
 await page.click("main form button[type=submit]");
-await page.waitForFunction(() => document.body.innerText.includes("Modifications enregistrées"), null, { timeout: 30000 });
+await page.waitForFunction(() => document.body.textContent.includes("Modifications enregistrées"), null, { timeout: 30000 });
 await page.goto(base + "/app/games", { waitUntil: "load" });
 check("cover displayed on game card", (await page.locator("article img[src^='/api/files/']").count()) >= 1);
 

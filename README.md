@@ -54,6 +54,9 @@ src/app                pages (App Router)
 src/components/ui      design system (boutons, cartes, champs, pills, icônes…)
 src/components/landing landing page
 src/lib/puzzles        registre extensible des 10 types d'énigmes + normalisation des réponses
+src/lib/engine         moteur pur : chronomètre, déblocage, progression, score, classement, badges
+src/lib/sessions       snapshot de jeu, moteur serveur de session, état live formateur
+src/lib/realtime       bus d'événements SSE
 src/lib                domaine : constantes, plans, auth (session, gardes, rate limit), validation, Prisma
 src/actions            Server Actions (auth, join)
 src/proxy.ts           garde optimiste des routes /app et /admin (ex-middleware)
@@ -71,4 +74,7 @@ legacy/                ancien prototype, exclu du build (supprimable)
 | 3 | Dashboard formateur : jeux (filtres, publier, dépublier, dupliquer, archiver, restaurer, supprimer), sessions, compétences, paramètres | DONE |
 | 4 | Création / modification d'un Escape Game (formulaire complet), réglages (chronomètre, score, classement, immersion), upload de fichiers | DONE |
 | 5 | Step Builder : ajout / duplication / suppression / réordonnancement des étapes, éditeur d'étape complet, 10 types d'énigmes, indices à coût, compétences, prévisualisation | DONE |
-| 6 → 20 | Moteur d'énigmes (validation serveur), moteur, sessions, apprenant, équipes, score, rapports, badges, IA, démo, responsive, sécurité | à venir |
+| 6 → 10 | Moteur : validation serveur, codes de déblocage, indices à coût, progression, chronomètre serveur (pause, prolongation, expiration) | DONE |
+| 11 | Sessions : lancement, snapshot figé, code à 6 caractères, QR code, lobby, pilotage live (pause, reprise, +5 min, fin, indice offert, déblocage, validation manuelle) | DONE |
+| 12 | Mode apprenant : rejoindre sans compte, écran mobile-first, temps réel (SSE + repli), feedback, rapport de fin avec compétences et badges | DONE |
+| 13 → 20 | Mode équipe, classement, rapports et statistiques, badges, IA, démo Excel, responsive, sécurité | à venir |
