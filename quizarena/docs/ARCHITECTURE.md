@@ -192,3 +192,42 @@ streakBonus = table[min(streak, table.length) − 1]  avec table = [0, 50, 100, 
 | Contenu IA non vérifié | Génération = brouillon toujours éditable ; publication manuelle uniquement. |
 | Clés API exposées | Uniquement en variables d'environnement serveur ; `AIService` n'est jamais importé côté client. |
 | Accessibilité des écrans de jeu | Lettres A/B/C/D + formes, contrastes AA, navigation clavier, `aria-live` pour le timer et le feedback, animations réduites. |
+
+---
+
+## 8. IA — architecture et import de contenu
+
+`AIService` (`src/lib/ai/ai-service.ts`) est le seul point d'entrée utilisé par le reste de
+l'application. Il choisit un `AIProvider` (`stub` par défaut, `anthropic` en option) via la
+variable d'environnement `AI_PROVIDER` — aucun appelant ne dépend d'un fournisseur précis, et
+les clés API ne vivent que côté serveur (`ANTHROPIC_API_KEY`, jamais exposée au client).
+
+Le `StubAIProvider` est déterministe et fonctionne hors-ligne (aucune clé, aucun coût, testable
+en CI) : il produit des brouillons de questions structurellement valides à partir du sujet et
+des compétences saisis par le formateur. Un `AnthropicProvider` réel appelle l'API Messages et
+valide strictement la sortie JSON avant de la renvoyer — la sortie d'un fournisseur n'est jamais
+consommée telle quelle. Dans tous les cas, les questions générées sont des **brouillons** :
+elles sont présentées à l'écran, modifiables champ par champ, et ne deviennent des questions
+réelles du quiz qu'après une action explicite du formateur (« Ajouter au quiz »). Rien n'est
+jamais publié automatiquement.
+
+**Import de contenu (PDF/DOCX/PPTX/URL) — architecture prête, non implémentée dans ce MVP.**
+`GenerateQuestionsInput` (`src/lib/ai/types.ts`) accepte aujourd'hui un sujet et des compétences
+saisis manuellement. L'ajout de l'import de contenu ne demande pas de revoir cette architecture,
+seulement de l'alimenter en amont :
+
+```
+Fichier (PDF/DOCX/PPTX) ou URL
+        │  ContentExtractor.extract(source) → { text, title, sections[] }
+        ▼
+GenerateQuestionsInput.sourceText (nouveau champ optionnel)
+        │  AIService.generateQuestions(input)
+        ▼
+Brouillons de questions (inchangé) → relecture → ajout manuel au quiz
+```
+
+Une interface `ContentExtractor` (une implémentation par format) produirait du texte brut à
+partir du document, sans jamais être appelée depuis le client ; `AIProvider.generateQuestions`
+recevrait ce texte comme contexte supplémentaire dans le prompt (fournisseur réel) ou comme
+source de mots-clés (fournisseur stub). Le contrat « toujours relu, jamais publié
+automatiquement » s'applique de la même façon, quelle que soit la source du contenu.

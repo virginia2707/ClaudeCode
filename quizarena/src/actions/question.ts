@@ -7,6 +7,7 @@ import { requireTrainer } from "@/lib/auth/session";
 import { questionSchema } from "@/lib/validation/quiz";
 import { fieldErrorsFrom, type ActionState } from "@/lib/action-state";
 import { getOwnedQuiz } from "@/lib/quiz/access";
+import { writeQuestion } from "@/lib/quiz/write";
 
 function questionFromForm(formData: FormData) {
   return {
@@ -44,19 +45,6 @@ function valuesFrom(raw: ReturnType<typeof questionFromForm>): Record<string, st
   };
 }
 
-async function syncSkills(ownerId: string, questionId: string, names: string[]) {
-  const unique = Array.from(new Set(names.map((n) => n.trim()).filter(Boolean)));
-  const skills = await Promise.all(
-    unique.map((name) =>
-      prisma.skill.upsert({ where: { ownerId_name: { ownerId, name } }, update: {}, create: { ownerId, name } }),
-    ),
-  );
-  await prisma.questionSkill.deleteMany({ where: { questionId } });
-  if (skills.length) {
-    await prisma.questionSkill.createMany({ data: skills.map((s) => ({ questionId, skillId: s.id })) });
-  }
-}
-
 export async function saveQuestionAction(
   quizId: string,
   questionId: string | null,
@@ -81,31 +69,9 @@ export async function saveQuestionAction(
     return { fieldErrors: fe, values: valuesFrom(raw) };
   }
   const d = parsed.data;
-  const answersData = d.answers.map((text, i) => ({ order: i, text, isCorrect: i === d.correctIndex }));
-  const base = {
-    text: d.text,
-    imageUrl: d.imageUrl || null,
-    explanation: d.explanation,
-    difficulty: d.difficulty,
-    timeLimit: d.timeLimit,
-    points: d.points,
-    category: d.category,
-  };
-
-  let id = questionId;
-  if (questionId) {
-    const existing = quiz.questions.find((q) => q.id === questionId);
-    if (!existing) return { error: "Question introuvable." };
-    await prisma.$transaction([
-      prisma.answer.deleteMany({ where: { questionId } }),
-      prisma.question.update({ where: { id: questionId }, data: { ...base, answers: { create: answersData } } }),
-    ]);
-  } else {
-    const order = quiz.questions.length ? Math.max(...quiz.questions.map((q) => q.order)) + 1 : 0;
-    const created = await prisma.question.create({ data: { ...base, quizId, order, answers: { create: answersData } } });
-    id = created.id;
-  }
-  await syncSkills(quiz.ownerId, id as string, d.skills);
+  if (questionId && !quiz.questions.some((q) => q.id === questionId)) return { error: "Question introuvable." };
+  const order = quiz.questions.length ? Math.max(...quiz.questions.map((q) => q.order)) + 1 : 0;
+  await writeQuestion({ quizId, ownerId: quiz.ownerId, questionId, order, data: d });
   revalidatePath(`/quizzes/${quizId}`);
 
   const addAnother = formData.get("intent") === "add-another";
