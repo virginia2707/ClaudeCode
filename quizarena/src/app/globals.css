@@ -1,0 +1,371 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   QuizArena design tokens
+   Dark-first, premium, energetic. Every colour is a token so a light theme
+   can be added later without touching components.
+--------------------------------------------------------------------------- */
+:root {
+  --bg: #0b0e14;
+  --bg-elevated: #0f131c;
+  --surface: #141925;
+  --surface-2: #1a2031;
+  --surface-3: #212a3d;
+  --border: #273043;
+  --border-strong: #35405a;
+  --text: #eef1f7;
+  --text-muted: #9aa4b8;
+  --text-faint: #6b7590;
+
+  /* Brand */
+  --primary: #7c6cff;
+  --primary-strong: #9a8dff;
+  --primary-ink: #ffffff;
+  --primary-soft: rgba(124, 108, 255, 0.16);
+
+  /* Points / energy */
+  --spark: #ffb547;
+  --spark-strong: #ffc86e;
+  --spark-ink: #2a1a00;
+  --spark-soft: rgba(255, 181, 71, 0.16);
+
+  --success: #3ed598;
+  --success-soft: rgba(62, 213, 152, 0.16);
+  --danger: #ff6b6b;
+  --danger-soft: rgba(255, 107, 107, 0.16);
+  --info: #4fc3f7;
+  --info-soft: rgba(79, 195, 247, 0.16);
+
+  /* Answer colours (paired with letters + shapes, never colour alone) */
+  --answer-a: #7c6cff;
+  --answer-b: #ffb547;
+  --answer-c: #3ed598;
+  --answer-d: #4fc3f7;
+
+  --ring: rgba(124, 108, 255, 0.55);
+  --shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+  --radius: 1rem;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg-elevated: var(--bg-elevated);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-text-faint: var(--text-faint);
+  --color-primary: var(--primary);
+  --color-primary-strong: var(--primary-strong);
+  --color-primary-ink: var(--primary-ink);
+  --color-primary-soft: var(--primary-soft);
+  --color-spark: var(--spark);
+  --color-spark-strong: var(--spark-strong);
+  --color-spark-ink: var(--spark-ink);
+  --color-spark-soft: var(--spark-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-answer-a: var(--answer-a);
+  --color-answer-b: var(--answer-b);
+  --color-answer-c: var(--answer-c);
+  --color-answer-d: var(--answer-d);
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --radius-card: var(--radius);
+}
+
+html {
+  color-scheme: dark;
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  min-height: 100dvh;
+}
+
+/* Subtle arena backdrop */
+.arena-bg {
+  background-image:
+    radial-gradient(60rem 30rem at 15% -10%, rgba(124, 108, 255, 0.18), transparent 60%),
+    radial-gradient(50rem 26rem at 90% 0%, rgba(255, 181, 71, 0.10), transparent 60%);
+}
+
+:focus-visible {
+  outline: 2px solid var(--primary-strong);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--primary);
+  color: var(--primary-ink);
+}
+
+/* ---------------------------------------------------------------------------
+   Component primitives (kept in CSS so server components stay light)
+--------------------------------------------------------------------------- */
+@layer components {
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.card-2 {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  border-radius: 0.75rem;
+  padding: 0.7rem 1.15rem;
+  line-height: 1.2;
+  border: 1px solid transparent;
+  transition: transform 120ms ease, background-color 160ms ease, border-color 160ms ease, opacity 160ms ease;
+  cursor: pointer;
+  white-space: nowrap;
+  min-height: 2.75rem;
+}
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.btn:not(:disabled):active {
+  transform: translateY(1px);
+}
+.btn-primary {
+  background: var(--primary);
+  color: var(--primary-ink);
+}
+.btn-primary:not(:disabled):hover {
+  background: var(--primary-strong);
+}
+.btn-spark {
+  background: var(--spark);
+  color: var(--spark-ink);
+}
+.btn-spark:not(:disabled):hover {
+  background: var(--spark-strong);
+}
+.btn-secondary {
+  background: var(--surface-2);
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+.btn-secondary:not(:disabled):hover {
+  background: var(--surface-3);
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--text-muted);
+}
+.btn-ghost:not(:disabled):hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.btn-danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-color: rgba(255, 107, 107, 0.35);
+}
+.btn-danger:not(:disabled):hover {
+  background: rgba(255, 107, 107, 0.26);
+}
+.btn-lg {
+  font-size: 1.05rem;
+  padding: 0.95rem 1.5rem;
+  min-height: 3.25rem;
+}
+.btn-sm {
+  font-size: 0.85rem;
+  padding: 0.45rem 0.8rem;
+  min-height: 2.25rem;
+  border-radius: 0.6rem;
+}
+
+.input {
+  width: 100%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: 0.75rem;
+  padding: 0.7rem 0.9rem;
+  color: var(--text);
+  min-height: 2.75rem;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+.input::placeholder {
+  color: var(--text-faint);
+}
+.input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+.input[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+select.input {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' viewBox='0 0 24 24' stroke='%239aa4b8' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  padding-right: 2.25rem;
+}
+
+.label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 0.4rem;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  padding: 0.2rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+.pill-primary {
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+  border-color: rgba(124, 108, 255, 0.35);
+}
+.pill-spark {
+  background: var(--spark-soft);
+  color: var(--spark-strong);
+  border-color: rgba(255, 181, 71, 0.35);
+}
+.pill-success {
+  background: var(--success-soft);
+  color: var(--success);
+  border-color: rgba(62, 213, 152, 0.35);
+}
+.pill-danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-color: rgba(255, 107, 107, 0.35);
+}
+.pill-info {
+  background: var(--info-soft);
+  color: var(--info);
+  border-color: rgba(79, 195, 247, 0.35);
+}
+
+.code-display {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+}
+
+.text-gradient {
+  background: linear-gradient(120deg, var(--primary-strong), var(--spark));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Timer bar */
+.timer-track {
+  height: 0.6rem;
+  border-radius: 999px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.timer-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--primary), var(--info));
+  transition: width 250ms linear, background-color 250ms ease;
+}
+.timer-fill[data-urgent="true"] {
+  background: linear-gradient(90deg, var(--danger), var(--spark));
+}
+}
+
+/* ---------------------------------------------------------------------------
+   Motion — every animation is opt-out via prefers-reduced-motion
+   or the in-app toggle (html[data-motion="reduced"]).
+--------------------------------------------------------------------------- */
+@keyframes qa-fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes qa-pop {
+  0% { transform: scale(0.92); opacity: 0; }
+  60% { transform: scale(1.03); opacity: 1; }
+  100% { transform: scale(1); }
+}
+@keyframes qa-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+@keyframes qa-pulse-ring {
+  0% { box-shadow: 0 0 0 0 var(--ring); }
+  100% { box-shadow: 0 0 0 14px rgba(124, 108, 255, 0); }
+}
+@keyframes qa-rise {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.anim-fade-up { animation: qa-fade-up 420ms ease both; }
+.anim-pop { animation: qa-pop 360ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.anim-float { animation: qa-float 3.2s ease-in-out infinite; }
+.anim-pulse-ring { animation: qa-pulse-ring 1.6s ease-out infinite; }
+.anim-rise { animation: qa-rise 600ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.anim-delay-1 { animation-delay: 80ms; }
+.anim-delay-2 { animation-delay: 160ms; }
+.anim-delay-3 { animation-delay: 240ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+html[data-motion="reduced"] *,
+html[data-motion="reduced"] *::before,
+html[data-motion="reduced"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

@@ -1,0 +1,375 @@
+// QuizArena — data model
+// SQLite for local dev (zero infra). Switch `provider` to "postgresql" for production.
+//
+// SQLite has no native enums in Prisma, so enum-like values are `String` columns
+// validated in application code. Canonical lists live in src/lib/constants.ts:
+//   Role:         TRAINER | ADMIN | LEARNER
+//   Plan:         FREE | PRO | BUSINESS | ENTERPRISE
+//   QuizStatus:   DRAFT | PUBLISHED | ARCHIVED
+//   Difficulty:   EASY | MEDIUM | HARD | EXPERT
+//   GameMode:     INDIVIDUAL | TEAM
+//   GameStatus:   LOBBY | QUESTION | REVEAL | LEADERBOARD | PAUSED | FINISHED | ABANDONED
+//   JokerType:    FIFTY_FIFTY | DOUBLE_POINTS | EXTRA_TIME | SECOND_CHANCE
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Users & organisations
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         String   @default("TRAINER")
+  plan         String   @default("FREE")
+  // Gamification profile (learners). XP accumulates across games.
+  totalXp      Int      @default(0)
+  // Optional per-user override of level names/thresholds (JSON). Null = defaults.
+  levelConfig  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  quizzes        Quiz[]
+  hostedGames    Game[]           @relation("HostedGames")
+  gamePlayers    GamePlayer[]
+  skills         Skill[]
+  xpTransactions XPTransaction[]
+  badges         PlayerBadge[]
+  analytics      AnalyticsEvent[]
+}
+
+// ---------------------------------------------------------------------------
+// Quiz authoring
+// ---------------------------------------------------------------------------
+
+model Quiz {
+  id          String    @id @default(cuid())
+  ownerId     String
+  title       String
+  description String    @default("")
+  category    String    @default("")
+  level       String    @default("MEDIUM") // Difficulty
+  status      String    @default("DRAFT") // QuizStatus
+  // Gameplay settings snapshot (see QuizSettingsSchema in src/lib/validation/quiz.ts)
+  settings    String    @default("{}")
+  isDemo      Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  publishedAt DateTime?
+
+  owner     User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  questions Question[]
+  games     Game[]
+  results   QuizResult[]
+
+  @@index([ownerId, status])
+}
+
+model Question {
+  id          String   @id @default(cuid())
+  quizId      String
+  order       Int
+  text        String
+  imageUrl    String?
+  explanation String   @default("")
+  difficulty  String   @default("MEDIUM") // Difficulty
+  timeLimit   Int      @default(20) // seconds
+  points      Int      @default(500)
+  category    String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  quiz          Quiz            @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  answers       Answer[]
+  skills        QuestionSkill[]
+  gameQuestions GameQuestion[]
+
+  @@index([quizId, order])
+}
+
+model Answer {
+  id         String  @id @default(cuid())
+  questionId String
+  order      Int
+  text       String
+  isCorrect  Boolean @default(false)
+
+  question      Question       @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  playerAnswers PlayerAnswer[]
+
+  @@index([questionId, order])
+}
+
+model Skill {
+  id        String   @id @default(cuid())
+  ownerId   String
+  name      String
+  createdAt DateTime @default(now())
+
+  owner     User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  questions QuestionSkill[]
+
+  @@unique([ownerId, name])
+}
+
+model QuestionSkill {
+  questionId String
+  skillId    String
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  skill    Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@id([questionId, skillId])
+}
+
+// ---------------------------------------------------------------------------
+// Live games
+// ---------------------------------------------------------------------------
+
+model Game {
+  id                String    @id @default(cuid())
+  quizId            String
+  hostId            String?
+  code              String    @unique // 6-char join code
+  status            String    @default("LOBBY") // GameStatus
+  mode              String    @default("INDIVIDUAL") // GameMode
+  // Index of the current GameQuestion (-1 while in lobby)
+  currentIndex      Int       @default(-1)
+  // Server-authoritative timestamps of the current question
+  questionStartedAt DateTime?
+  questionEndsAt    DateTime?
+  // Status to restore when un-pausing
+  pausedFromStatus  String?
+  // Immutable snapshot of quiz settings at game creation (see QuizSettingsSchema)
+  settings          String    @default("{}")
+  isDemo            Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+  startedAt         DateTime?
+  endedAt           DateTime?
+
+  quiz       Quiz             @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  host       User?            @relation("HostedGames", fields: [hostId], references: [id], onDelete: SetNull)
+  players    GamePlayer[]
+  teams      Team[]
+  questions  GameQuestion[]
+  results    GameResult[]
+  quizResult QuizResult?
+  analytics  AnalyticsEvent[]
+
+  @@index([status, createdAt])
+}
+
+model Team {
+  id     String @id @default(cuid())
+  gameId String
+  name   String
+  color  String @default("#7C6CFF")
+  score  Int    @default(0)
+
+  game    Game         @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  players GamePlayer[]
+
+  @@unique([gameId, name])
+}
+
+model GamePlayer {
+  id              String   @id @default(cuid())
+  gameId          String
+  userId          String?
+  teamId          String?
+  nickname        String
+  // Secret token bound to the player's cookie (single session per player)
+  sessionToken    String   @unique
+  // Denormalised live score state (audit trail in PlayerAnswer)
+  score           Int      @default(0)
+  streak          Int      @default(0)
+  bestStreak      Int      @default(0)
+  correctCount    Int      @default(0)
+  answeredCount   Int      @default(0)
+  totalResponseMs Int      @default(0)
+  // Rank after the previous question, for "↑ +2" indicators
+  previousRank    Int?
+  connected       Boolean  @default(true)
+  lastSeenAt      DateTime @default(now())
+  joinedAt        DateTime @default(now())
+
+  game    Game            @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  user    User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  team    Team?           @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  answers PlayerAnswer[]
+  jokers  PlayerJoker[]
+  badges  PlayerBadge[]
+  result  GameResult?
+  xp      XPTransaction[]
+
+  @@unique([gameId, nickname])
+  @@index([gameId, score])
+}
+
+model GameQuestion {
+  id         String    @id @default(cuid())
+  gameId     String
+  questionId String
+  order      Int
+  startedAt  DateTime?
+  endsAt     DateTime?
+  endedAt    DateTime?
+
+  game     Game           @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  question Question       @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answers  PlayerAnswer[]
+  jokers   PlayerJoker[]
+
+  @@unique([gameId, order])
+}
+
+// The score ledger: one row per player per question, written once.
+model PlayerAnswer {
+  id             String   @id @default(cuid())
+  gamePlayerId   String
+  gameQuestionId String
+  answerId       String?
+  isCorrect      Boolean
+  responseMs     Int
+  basePoints     Int      @default(0)
+  speedBonus     Int      @default(0)
+  streakBonus    Int      @default(0)
+  multiplier     Int      @default(1)
+  penalty        Int      @default(0)
+  pointsAwarded  Int      @default(0)
+  streakAfter    Int      @default(0)
+  // Number of attempts used (2 when Second Chance was consumed)
+  attempts       Int      @default(1)
+  submittedAt    DateTime @default(now())
+
+  player       GamePlayer   @relation(fields: [gamePlayerId], references: [id], onDelete: Cascade)
+  gameQuestion GameQuestion @relation(fields: [gameQuestionId], references: [id], onDelete: Cascade)
+  answer       Answer?      @relation(fields: [answerId], references: [id], onDelete: SetNull)
+
+  @@unique([gamePlayerId, gameQuestionId])
+}
+
+model PlayerJoker {
+  id           String    @id @default(cuid())
+  gamePlayerId String
+  type         String // JokerType
+  remaining    Int       @default(1)
+  // Set when the joker is armed/used on a question
+  usedOnId     String?
+  usedAt       DateTime?
+
+  player GamePlayer    @relation(fields: [gamePlayerId], references: [id], onDelete: Cascade)
+  usedOn GameQuestion? @relation(fields: [usedOnId], references: [id], onDelete: SetNull)
+
+  @@unique([gamePlayerId, type])
+}
+
+// ---------------------------------------------------------------------------
+// Gamification
+// ---------------------------------------------------------------------------
+
+model Badge {
+  id          String @id @default(cuid())
+  code        String @unique
+  name        String
+  description String
+  icon        String @default("award")
+  // Configurable criteria, e.g. {"type":"accuracy","min":1}
+  criteria    String @default("{}")
+
+  awards PlayerBadge[]
+}
+
+model PlayerBadge {
+  id           String   @id @default(cuid())
+  badgeId      String
+  gamePlayerId String
+  userId       String?
+  awardedAt    DateTime @default(now())
+
+  badge  Badge      @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  player GamePlayer @relation(fields: [gamePlayerId], references: [id], onDelete: Cascade)
+  user   User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([badgeId, gamePlayerId])
+}
+
+model XPTransaction {
+  id           String   @id @default(cuid())
+  userId       String?
+  gamePlayerId String?
+  amount       Int
+  reason       String
+  createdAt    DateTime @default(now())
+
+  user   User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  player GamePlayer? @relation(fields: [gamePlayerId], references: [id], onDelete: Cascade)
+}
+
+// ---------------------------------------------------------------------------
+// Results & reports
+// ---------------------------------------------------------------------------
+
+model GameResult {
+  id            String   @id @default(cuid())
+  gameId        String
+  gamePlayerId  String   @unique
+  rank          Int
+  score         Int
+  correctCount  Int
+  answeredCount Int
+  accuracy      Float
+  avgResponseMs Int
+  bestStreak    Int
+  xpEarned      Int
+  level         Int
+  levelName     String
+  createdAt     DateTime @default(now())
+
+  game   Game       @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  player GamePlayer @relation(fields: [gamePlayerId], references: [id], onDelete: Cascade)
+
+  @@index([gameId, rank])
+}
+
+model QuizResult {
+  id           String   @id @default(cuid())
+  quizId       String
+  gameId       String   @unique
+  participants Int
+  avgScore     Float
+  medianScore  Float
+  // Per-question stats + distributions (JSON, see GameReport type)
+  stats        String   @default("{}")
+  createdAt    DateTime @default(now())
+
+  quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+}
+
+// ---------------------------------------------------------------------------
+// Product analytics (privacy-conscious: no PII in payload)
+// ---------------------------------------------------------------------------
+
+model AnalyticsEvent {
+  id        String   @id @default(cuid())
+  type      String
+  userId    String?
+  gameId    String?
+  payload   String   @default("{}")
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  game Game? @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@index([type, createdAt])
+}
