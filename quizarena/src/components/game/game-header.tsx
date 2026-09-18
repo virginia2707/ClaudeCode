@@ -1,4 +1,3 @@
-import { Flame } from "lucide-react";
 import { formatPoints } from "@/lib/utils";
 
 export function GameHeader({ index, total, score, streak, seconds }: { index: number; total: number; score: number; streak: number; seconds?: number }) {

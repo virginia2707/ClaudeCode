@@ -47,7 +47,7 @@ npm run dev
 | 6 | Moteur de quiz temps réel | ✅ |
 | 7 | Scoring, rapidité, séries | ✅ |
 | 8 | Classement + podium | ✅ |
-| 9 | Jokers | ⏳ |
+| 9 | Jokers | ✅ |
 | 10 | Statistiques | ⏳ |
 | 11 | IA | ⏳ |
 | 12 | Badges, niveaux, XP | ⏳ |

@@ -17,6 +17,8 @@ import { QuestionCard, AnswerGrid } from "@/components/game/question-card";
 import { FeedbackPanel, type FeedbackData } from "@/components/game/feedback-panel";
 import { Leaderboard, TeamLeaderboard } from "@/components/game/leaderboard";
 import { Podium, ResultCard, ResultsTable } from "@/components/game/podium";
+import { JokerBar } from "./joker-bar";
+import type { JokerType } from "@/lib/constants";
 import { formatPoints } from "@/lib/utils";
 
 async function fetchMe(gameId: string): Promise<MeView | null> {
@@ -35,6 +37,7 @@ export function PlayerScreen({ gameId, playerId, nickname, initialState }: { gam
   const [result, setResult] = useState<SubmitResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [jokerPending, setJokerPending] = useState<string | null>(null);
 
   const refreshMe = useCallback(async () => {
     const m = await fetchMe(gameId);
@@ -64,10 +67,32 @@ export function PlayerScreen({ gameId, playerId, nickname, initialState }: { gam
 
   const question = state?.question ?? null;
   const paused = status === "PAUSED";
-  const countdown = useCountdown(question?.endsAt ?? null, question?.startedAt ?? null, now, paused || status !== "QUESTION");
+  const extraMs = me?.effects && me.currentAnswer?.gameQuestionId !== questionId ? me.effects.extraMs : me?.effects?.extraMs ?? 0;
+  const personalEndsAt = question ? question.endsAt + (me?.jokers.some((j) => j.type === "EXTRA_TIME" && j.usedOnId === question.gameQuestionId) ? extraMs : 0) : null;
+  const countdown = useCountdown(personalEndsAt, question?.startedAt ?? null, now, paused || status !== "QUESTION");
+
+  async function useJokerNow(type: JokerType) {
+    if (!question || jokerPending) return;
+    setJokerPending(type);
+    setError(null);
+    try {
+      const res = await fetch(`/api/games/${gameId}/joker`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gameQuestionId: question.gameQuestionId, type }),
+      });
+      const data = await res.json();
+      if (!res.ok) setError(data.error ?? "Joker refusé.");
+      await refreshMe();
+    } catch {
+      setError("Connexion perdue. Réessayez.");
+    } finally {
+      setJokerPending(null);
+    }
+  }
 
   async function answer(answerId: string) {
-    if (!question || submitting || result || me?.currentAnswer?.gameQuestionId === question.gameQuestionId) return;
+    if (!question || submitting || result) return;
     setSelected(answerId);
     setSubmitting(true);
     setError(null);
@@ -101,7 +126,12 @@ export function PlayerScreen({ gameId, playerId, nickname, initialState }: { gam
   const meView = state.players.find((p) => p.id === playerId);
   const score = result?.score ?? me?.score ?? meView?.score ?? 0;
   const streak = result?.streakAfter ?? me?.streak ?? meView?.streak ?? 0;
-  const alreadyAnswered = !!result || (me?.currentAnswer?.gameQuestionId === question?.gameQuestionId && !!me?.currentAnswer);
+  const currentAnswer = me?.currentAnswer?.gameQuestionId === question?.gameQuestionId ? me?.currentAnswer ?? null : null;
+  const retryPending = !!currentAnswer && !currentAnswer.isCorrect && currentAnswer.attempts < 2 && !!me?.effects?.secondChance && !result;
+  const alreadyAnswered = !!result || (!!currentAnswer && !retryPending);
+  const hidden = new Set(me?.effects?.hiddenAnswerIds ?? []);
+  const usedOnCurrent = new Set((me?.jokers ?? []).filter((j) => j.usedOnId === question?.gameQuestionId).map((j) => j.type));
+  const answersForGrid = question ? question.answers.map((a) => ({ ...a, hidden: hidden.has(a.id) || (retryPending && a.id === currentAnswer?.answerId) })) : [];
   const mySelected = selected ?? (me?.currentAnswer?.gameQuestionId === question?.gameQuestionId ? me?.currentAnswer?.answerId ?? null : null);
 
   const feedback: FeedbackData | null = (() => {
@@ -136,8 +166,12 @@ export function PlayerScreen({ gameId, playerId, nickname, initialState }: { gam
               <>
                 <TimerBar seconds={countdown.seconds} ratio={countdown.ratio} />
                 <QuestionCard index={question.index} total={question.total} text={question.text} imageUrl={question.imageUrl} />
-                <AnswerGrid answers={question.answers} onSelect={answer} selectedId={mySelected} disabled={paused || submitting || alreadyAnswered || countdown.remainingMs <= 0} />
+                <AnswerGrid answers={answersForGrid} onSelect={answer} selectedId={retryPending ? null : mySelected} disabled={paused || submitting || alreadyAnswered || countdown.remainingMs <= 0} />
                 {error ? <Alert tone={error.includes("Second Chance") ? "spark" : "danger"}>{error}</Alert> : null}
+                {retryPending && !error ? <Alert tone="spark">Second Chance : mauvaise réponse, vous pouvez réessayer une fois.</Alert> : null}
+                {state.settings.jokersEnabled && me ? (
+                  <JokerBar jokers={me.jokers} usedOnCurrent={usedOnCurrent} disabled={paused || alreadyAnswered || !!currentAnswer || countdown.remainingMs <= 0} pending={jokerPending} onUse={useJokerNow} />
+                ) : null}
                 {alreadyAnswered && !error ? (
                   <p className="text-center text-sm text-text-muted" role="status">
                     Réponse enregistrée. En attente de la fin du temps…

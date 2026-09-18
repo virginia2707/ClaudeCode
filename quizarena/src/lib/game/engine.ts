@@ -6,7 +6,8 @@ import { loadPlayerViews, loadQuestionView, loadRevealView, rankPlayers } from "
 import { scoreAnswer, xpForScore } from "./scoring";
 import { levelFor } from "./levels";
 import { track } from "@/lib/analytics";
-import type { JokerType } from "@/lib/constants";
+import { JOKER_TYPES, type JokerType } from "@/lib/constants";
+import { fiftyFiftyHidden, type JokerUseResult } from "./jokers";
 
 /**
  * GameEngine — the server-side state machine. The server is the single source
@@ -420,3 +421,70 @@ export async function submitAnswer(opts: { gameId: string; playerId: string; gam
 }
 
 export type { QuizSettings };
+
+// ---------------------------------------------------------------------------
+// Jokers
+// ---------------------------------------------------------------------------
+
+/**
+ * Arm a joker on the current question. Rules: the question must be live, the
+ * player must not have answered yet, the joker must be in stock and not
+ * already used on this question. Extra Time also pushes back the server-side
+ * close so the player is not cut off.
+ */
+export async function useJoker(opts: { gameId: string; playerId: string; gameQuestionId: string; type: JokerType }): Promise<JokerUseResult> {
+  const { gameId, playerId, gameQuestionId, type } = opts;
+  if (!JOKER_TYPES.includes(type)) throw new EngineError("Joker inconnu.", "INVALID");
+  const { game, settings } = await loadGame(gameId);
+  if (!settings.jokersEnabled) throw new EngineError("Les jokers sont désactivés pour ce quiz.", "INVALID");
+  if (game.status !== "QUESTION") throw new EngineError("Aucune question en cours.", "CLOSED");
+  const gq = await prisma.gameQuestion.findUnique({ where: { id: gameQuestionId }, include: { question: { include: { answers: true } } } });
+  if (!gq || gq.gameId !== gameId || gq.order !== game.currentIndex || !gq.endsAt) throw new EngineError("Question inactive.", "CLOSED");
+  if (Date.now() > gq.endsAt.getTime()) throw new EngineError("Le temps est écoulé.", "CLOSED");
+  const player = await prisma.gamePlayer.findUnique({ where: { id: playerId } });
+  if (!player || player.gameId !== gameId) throw new EngineError("Joueur inconnu.", "FORBIDDEN");
+  const answered = await prisma.playerAnswer.findUnique({ where: { gamePlayerId_gameQuestionId: { gamePlayerId: playerId, gameQuestionId } } });
+  if (answered) throw new EngineError("Les jokers s'utilisent avant de répondre.", "INVALID");
+  const joker = await prisma.playerJoker.findUnique({ where: { gamePlayerId_type: { gamePlayerId: playerId, type } } });
+  if (!joker || joker.remaining <= 0) throw new EngineError("Ce joker n'est plus disponible.", "INVALID");
+  if (joker.usedOnId === gameQuestionId) throw new EngineError("Joker déjà utilisé sur cette question.", "INVALID");
+
+  const updated = await prisma.playerJoker.update({
+    where: { id: joker.id },
+    data: { remaining: { decrement: 1 }, usedOnId: gameQuestionId, usedAt: new Date() },
+  });
+  await track("joker_used", { gameId, payload: { type } });
+
+  const result: JokerUseResult = { type, remaining: updated.remaining };
+  if (type === "FIFTY_FIFTY") {
+    result.hiddenAnswerIds = fiftyFiftyHidden(gq.question.answers, `${playerId}:${gameQuestionId}`);
+  }
+  if (type === "EXTRA_TIME") {
+    const extraMs = settings.extraTimeSeconds * 1000;
+    result.extraMs = extraMs;
+    const personalDeadline = new Date(gq.endsAt.getTime() + extraMs);
+    if (!game.questionEndsAt || personalDeadline > game.questionEndsAt) {
+      await prisma.game.update({ where: { id: gameId }, data: { questionEndsAt: personalDeadline } });
+      scheduleClose(gameId, gq.id, personalDeadline, settings.lateToleranceMs);
+    }
+  }
+  return result;
+}
+
+/** Private per-question joker effects for a player (for /me and reconnection). */
+export async function jokerEffects(playerId: string, gameQuestionId: string | null) {
+  if (!gameQuestionId) return { hiddenAnswerIds: [] as string[], extraMs: 0, doublePoints: false, secondChance: false };
+  const [jokers, gq, game] = await Promise.all([
+    prisma.playerJoker.findMany({ where: { gamePlayerId: playerId, usedOnId: gameQuestionId } }),
+    prisma.gameQuestion.findUnique({ where: { id: gameQuestionId }, include: { question: { include: { answers: true } } } }),
+    prisma.gameQuestion.findUnique({ where: { id: gameQuestionId }, select: { game: { select: { settings: true } } } }),
+  ]);
+  const used = new Set(jokers.map((j) => j.type));
+  const settings = parseSettings(game?.game.settings);
+  return {
+    hiddenAnswerIds: used.has("FIFTY_FIFTY") && gq ? fiftyFiftyHidden(gq.question.answers, `${playerId}:${gameQuestionId}`) : [],
+    extraMs: used.has("EXTRA_TIME") ? settings.extraTimeSeconds * 1000 : 0,
+    doublePoints: used.has("DOUBLE_POINTS"),
+    secondChance: used.has("SECOND_CHANCE"),
+  };
+}
