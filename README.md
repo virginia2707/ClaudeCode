@@ -26,7 +26,24 @@ npm run seed
 npm run dev
 ```
 
-Vérifications : `npm run typecheck`, `npm run lint`, `npm run build`.
+### Comptes de démonstration (créés par `npm run seed`)
+
+| Rôle | E-mail | Mot de passe |
+|---|---|---|
+| Admin | admin@escapeclass.dev | `Admin1234!` |
+| Formateur | formateur@escapeclass.dev | `Formateur1234!` |
+| Apprenant | apprenant@escapeclass.dev | `Apprenant1234!` |
+
+### Vérifications
+
+```bash
+npm run typecheck   # TypeScript
+npm run lint        # ESLint
+npm test            # tests unitaires (Vitest)
+npm run build       # build de production
+# E2E (Playwright requis, serveur démarré et base seedée) :
+BASE=http://localhost:3000 npm run test:e2e
+```
 
 ## Structure
 
@@ -36,7 +53,10 @@ prisma/schema.prisma   modèle de données complet (23 entités)
 src/app                pages (App Router)
 src/components/ui      design system (boutons, cartes, champs, pills, icônes…)
 src/components/landing landing page
-src/lib                domaine : constantes, plans, contrat des types d'énigmes, Prisma
+src/lib                domaine : constantes, plans, auth (session, gardes, rate limit), validation, Prisma
+src/actions            Server Actions (auth, join)
+src/proxy.ts           garde optimiste des routes /app et /admin (ex-middleware)
+tests/unit             tests Vitest ; tests/e2e : scénarios Playwright
 legacy/                ancien prototype, exclu du build (supprimable)
 ```
 
@@ -46,5 +66,5 @@ legacy/                ancien prototype, exclu du build (supprimable)
 |---|---|---|
 | R/T | Recherche + architecture | DONE |
 | 1 | Architecture + design system + landing page | DONE |
-| 2 | Authentification + rôles | à venir |
+| 2 | Authentification + rôles (ADMIN / TRAINER / LEARNER), routes protégées, 403, rate limiting | DONE |
 | 3 → 20 | Dashboard, création, step builder, moteur, sessions, apprenant, équipes, score, rapports, badges, IA, démo, responsive, sécurité | à venir |
