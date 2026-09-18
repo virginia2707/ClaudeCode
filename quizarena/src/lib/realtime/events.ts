@@ -39,6 +39,23 @@ export type RevealView = {
   answeredCount: number;
 };
 
+export type ResultView = {
+  playerId: string;
+  nickname: string;
+  teamName: string | null;
+  rank: number;
+  score: number;
+  correctCount: number;
+  answeredCount: number;
+  accuracy: number;
+  avgResponseMs: number;
+  bestStreak: number;
+  xpEarned: number;
+  level: number;
+  levelName: string;
+  badges: { code: string; name: string; icon: string }[];
+};
+
 export type GameStatePublic = {
   gameId: string;
   code: string;
@@ -53,6 +70,8 @@ export type GameStatePublic = {
   players: PlayerView[];
   teams: TeamView[];
   answeredCount: number;
+  /** Frozen results, present once the game is FINISHED. */
+  results: ResultView[] | null;
   settings: {
     feedbackEnabled: boolean;
     showExplanation: boolean;

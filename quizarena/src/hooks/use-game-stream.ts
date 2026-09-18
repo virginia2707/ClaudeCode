@@ -88,6 +88,8 @@ export function useGameStream(gameId: string, initial: GameStatePublic | null) {
           if (event.type === "snapshot") setOffset(event.state.serverTime - Date.now());
           setState((prev) => reduceGameState(prev, event));
           setLastEvent(event);
+          // Results are computed server-side at the end: fetch the full state once.
+          if (event.type === "game_finished") void resync();
         } catch {
           /* malformed */
         }

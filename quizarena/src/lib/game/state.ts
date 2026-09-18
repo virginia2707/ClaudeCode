@@ -1,7 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/db/prisma";
 import { parseSettings } from "@/lib/validation/quiz";
-import type { GameStatePublic, PlayerView, QuestionView, RevealView, TeamView } from "@/lib/realtime/events";
+import type { GameStatePublic, PlayerView, QuestionView, ResultView, RevealView, TeamView } from "@/lib/realtime/events";
 
 /** Rank players by score (ties keep join order) and teams by score. */
 export function rankPlayers<T extends { score: number; joinedAt?: Date }>(players: T[]): (T & { rank: number })[] {
@@ -79,6 +79,30 @@ export async function loadRevealView(gameQuestionId: string): Promise<RevealView
   };
 }
 
+export async function loadResults(gameId: string): Promise<ResultView[]> {
+  const rows = await prisma.gameResult.findMany({
+    where: { gameId },
+    orderBy: { rank: "asc" },
+    include: { player: { include: { team: { select: { name: true } }, badges: { include: { badge: true } } } } },
+  });
+  return rows.map((r) => ({
+    playerId: r.gamePlayerId,
+    nickname: r.player.nickname,
+    teamName: r.player.team?.name ?? null,
+    rank: r.rank,
+    score: r.score,
+    correctCount: r.correctCount,
+    answeredCount: r.answeredCount,
+    accuracy: r.accuracy,
+    avgResponseMs: r.avgResponseMs,
+    bestStreak: r.bestStreak,
+    xpEarned: r.xpEarned,
+    level: r.level,
+    levelName: r.levelName,
+    badges: r.player.badges.map((b) => ({ code: b.badge.code, name: b.badge.name, icon: b.badge.icon })),
+  }));
+}
+
 /** Full public state of a game (what every viewer may see). */
 export async function buildPublicState(gameId: string): Promise<GameStatePublic | null> {
   const game = await prisma.game.findUnique({ where: { id: gameId }, include: { quiz: { select: { title: true, description: true } } } });
@@ -99,6 +123,7 @@ export async function buildPublicState(gameId: string): Promise<GameStatePublic 
     }
   }
   const { players, teams } = await loadPlayerViews(gameId, currentGqId);
+  const results = game.status === "FINISHED" ? await loadResults(gameId) : null;
   return {
     gameId: game.id,
     code: game.code,
@@ -113,6 +138,7 @@ export async function buildPublicState(gameId: string): Promise<GameStatePublic 
     players,
     teams,
     answeredCount: players.filter((p) => p.answered).length,
+    results,
     settings: {
       feedbackEnabled: settings.feedbackEnabled,
       showExplanation: settings.showExplanation,

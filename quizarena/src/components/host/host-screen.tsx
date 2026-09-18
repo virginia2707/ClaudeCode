@@ -15,6 +15,7 @@ import { TimerBar } from "@/components/game/timer-bar";
 import { ANSWER_COLORS, ANSWER_LETTERS } from "@/components/game/question-card";
 import { Leaderboard, TeamLeaderboard } from "@/components/game/leaderboard";
 import { HostLobby } from "./host-lobby";
+import { Podium, ResultsTable } from "@/components/game/podium";
 import { cn } from "@/lib/utils";
 
 export function HostScreen({ gameId, initialState, joinUrl }: { gameId: string; initialState: GameStatePublic; joinUrl: string }) {
@@ -185,18 +186,27 @@ export function HostScreen({ gameId, initialState, joinUrl }: { gameId: string; 
       ) : null}
 
       {status === "FINISHED" ? (
-        <div className="card p-8 text-center">
-          <div className="text-xs font-bold uppercase tracking-[0.3em] text-primary-strong">Final results</div>
-          <h2 className="mt-2 text-3xl font-black">Partie terminée</h2>
-          <div className="mx-auto mt-6 max-w-xl text-left">
-            {state.mode === "TEAM" ? (
-              <div className="mb-4">
-                <TeamLeaderboard teams={state.teams} />
+        <div className="space-y-4">
+          {state.results && state.results.length ? (
+            <>
+              <Podium results={state.results} />
+              <div className="grid gap-4 lg:grid-cols-2">
+                {state.mode === "TEAM" ? (
+                  <div className="card p-4">
+                    <h3 className="mb-2 font-semibold">Classement des équipes</h3>
+                    <TeamLeaderboard teams={state.teams} />
+                  </div>
+                ) : null}
+                <div className="card p-4">
+                  <h3 className="mb-2 font-semibold">Classement complet</h3>
+                  <ResultsTable results={state.results} from={0} />
+                </div>
               </div>
-            ) : null}
-            <Leaderboard players={state.players} limit={20} />
-          </div>
-          <div className="mt-6 flex justify-center gap-2">
+            </>
+          ) : (
+            <div className="card p-6 text-center text-text-muted">Calcul des résultats…</div>
+          )}
+          <div className="flex justify-center gap-2">
             <Link href={`/games/${gameId}/report`} className="btn btn-primary">
               Voir le rapport
             </Link>

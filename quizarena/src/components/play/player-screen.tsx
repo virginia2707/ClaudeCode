@@ -7,7 +7,7 @@ import type { GameStatePublic } from "@/lib/realtime/events";
 import type { SubmitResult } from "@/lib/game/engine";
 import type { MeView } from "@/app/api/games/[id]/me/route";
 import { Logo } from "@/components/ui/logo";
-import { Pill } from "@/components/ui/pill";
+import Link from "next/link";
 import { Alert } from "@/components/ui/alert";
 import { ConnectionBadge } from "./connection-badge";
 import { WaitingRoom } from "./waiting-room";
@@ -16,6 +16,7 @@ import { TimerBar } from "@/components/game/timer-bar";
 import { QuestionCard, AnswerGrid } from "@/components/game/question-card";
 import { FeedbackPanel, type FeedbackData } from "@/components/game/feedback-panel";
 import { Leaderboard, TeamLeaderboard } from "@/components/game/leaderboard";
+import { Podium, ResultCard, ResultsTable } from "@/components/game/podium";
 import { formatPoints } from "@/lib/utils";
 
 async function fetchMe(gameId: string): Promise<MeView | null> {
@@ -166,18 +167,27 @@ export function PlayerScreen({ gameId, playerId, nickname, initialState }: { gam
 
         {status === "FINISHED" ? (
           <div className="space-y-4">
-            <div className="card p-6 text-center">
-              <div className="text-xs font-bold uppercase tracking-[0.3em] text-primary-strong">Final results</div>
-              <h1 className="mt-2 text-3xl font-black">Partie terminée</h1>
-              <p className="mt-2 text-text-muted">
-                Vous terminez <strong className="text-text">{meView?.rank ?? "—"}</strong>
-                <sup>{meView?.rank === 1 ? "er" : "e"}</sup> avec {formatPoints(score)} points.
-              </p>
-              <Pill tone="spark" className="mt-3">
-                Le podium complet arrive en phase 8
-              </Pill>
-            </div>
-            <Leaderboard players={state.players} highlightId={playerId} limit={20} />
+            {state.results && state.results.length ? (
+              <>
+                <Podium results={state.results} highlightId={playerId} />
+                {state.mode === "TEAM" ? (
+                  <div className="card p-4">
+                    <h3 className="mb-2 font-semibold">Classement des équipes</h3>
+                    <TeamLeaderboard teams={state.teams} highlightId={meView?.teamId} />
+                  </div>
+                ) : null}
+                {(() => {
+                  const mine = state.results.find((r) => r.playerId === playerId);
+                  return mine ? <ResultCard r={mine} title="Votre résultat" /> : null;
+                })()}
+                <ResultsTable results={state.results} highlightId={playerId} />
+              </>
+            ) : (
+              <div className="card p-6 text-center text-text-muted">Calcul des résultats…</div>
+            )}
+            <p className="text-center text-sm text-text-muted">
+              Merci d&apos;avoir joué ! <Link href="/" className="text-primary-strong hover:underline">Retour à l&apos;accueil</Link>
+            </p>
           </div>
         ) : null}
 
