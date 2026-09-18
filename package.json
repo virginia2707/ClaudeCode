@@ -1,5 +1,5 @@
 {
-  "name": "the-apprentice",
+  "name": "escapeclass",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -7,8 +7,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "seed": "tsx prisma/seed.ts",
-    "db:migrate": "prisma migrate dev"
+    "db:migrate": "prisma migrate dev",
+    "db:push": "prisma db push"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

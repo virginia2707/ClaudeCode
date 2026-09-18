@@ -1,6 +1,9 @@
-// The Apprentice — data model
-// SQLite is used for the MVP (zero external infra, ships in one file).
-// Swapping to Postgres later only requires changing `provider` + `url`.
+// EscapeClass — modèle de données
+// SQLite pour le MVP (zéro infrastructure). Passage à PostgreSQL en production :
+// changer `provider` + `url` ci-dessous, puis `prisma migrate dev`.
+//
+// SQLite ne supporte pas les enums Prisma : les valeurs de type enum sont des
+// `String` validées en application (listes canoniques : src/lib/constants.ts).
 
 generator client {
   provider = "prisma-client-js"
@@ -11,224 +14,480 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// SQLite has no native enum support in Prisma, so the enums below are
-// modeled as `String` columns. Allowed values are enforced in application
-// code — see src/lib/constants.ts for the canonical lists:
-// Role: ADMIN | FORMATEUR | APPRENANT
-// Plan: FREE | PRO | BUSINESS | ENTERPRISE
-// SimulationStatus: DRAFT | PUBLISHED | ARCHIVED
-// Difficulty: EASY | MEDIUM | HARD | EXPERT
-// ProgressStatus: IN_PROGRESS | COMPLETED | ABANDONED
-// AIInteractionType: GENERATE_SIMULATION | COACH_HINT | GENERATE_FEEDBACK | GENERATE_REPORT
+// ---------------------------------------------------------------------------
+// Comptes, organisations, plans
+// ---------------------------------------------------------------------------
 
 model User {
-  id           String   @id @default(cuid())
-  name         String
-  email        String   @unique
+  id           String    @id @default(cuid())
+  email        String    @unique
   passwordHash String
-  role         String   @default("APPRENANT")
-  plan         String   @default("FREE")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  firstName    String
+  lastName     String
+  role         String    @default("TRAINER") // ADMIN | TRAINER | LEARNER
+  plan         String    @default("FREE") // FREE | PRO | BUSINESS | ENTERPRISE
+  avatarUrl    String?
+  locale       String    @default("fr")
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  simulationsCreated Simulation[]    @relation("CreatedSimulations")
-  progresses         Progress[]
-  aiInteractions     AIInteraction[]
+  memberships     Membership[]
+  games           EscapeGame[]     @relation("GameOwner")
+  skills          Skill[]
+  sessions        GameSession[]    @relation("SessionHost")
+  aiJobs          AIJob[]
+  uploads         Upload[]
+  analyticsEvents AnalyticsEvent[]
+  badgesCreated   Badge[]          @relation("BadgeOwner")
 }
 
-model Simulation {
-  id          String            @id @default(cuid())
-  title       String
-  job         String
-  company     String
-  context     String
-  description String
-  durationDays Int              @default(5)
-  status      String            @default("DRAFT")
-  accessCode  String?           @unique
-  createdById String
-  createdBy   User              @relation("CreatedSimulations", fields: [createdById], references: [id])
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  plan      String   @default("FREE")
+  logoUrl   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  skills     Skill[]
-  missions   Mission[]
-  badges     Badge[]
-  progresses Progress[]
+  memberships Membership[]
+  games       EscapeGame[]
+}
+
+model Membership {
+  id             String       @id @default(cuid())
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role           String       @default("TRAINER") // OWNER | MANAGER | TRAINER
+  createdAt      DateTime     @default(now())
+
+  @@unique([userId, organizationId])
+}
+
+// ---------------------------------------------------------------------------
+// Contenu pédagogique : jeu, réglages, étapes, énigmes, réponses, indices
+// ---------------------------------------------------------------------------
+
+model EscapeGame {
+  id               String        @id @default(cuid())
+  ownerId          String
+  owner            User          @relation("GameOwner", fields: [ownerId], references: [id])
+  organizationId   String?
+  organization     Organization? @relation(fields: [organizationId], references: [id])
+  title            String
+  slug             String        @unique
+  description      String        @default("")
+  category         String        @default("BUREAUTIQUE")
+  level            String        @default("INTERMEDIATE") // BEGINNER | INTERMEDIATE | ADVANCED | EXPERT
+  difficulty       String        @default("MEDIUM") // EASY | MEDIUM | HARD
+  estimatedMinutes Int           @default(45)
+  objective        String        @default("")
+  scenario         String        @default("")
+  introduction     String        @default("")
+  finalMessage     String        @default("")
+  coverImageUrl    String?
+  mode             String        @default("INDIVIDUAL") // INDIVIDUAL | TEAM
+  maxParticipants  Int           @default(30)
+  status           String        @default("DRAFT") // DRAFT | PUBLISHED | ARCHIVED
+  version          Int           @default(1)
+  isDemo           Boolean       @default(false)
+  publishedAt      DateTime?
+  archivedAt       DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  settings GameSetting?
+  steps    GameStep[]
+  sessions GameSession[]
+  badges   Badge[]
+  aiJobs   AIJob[]
+  events   AnalyticsEvent[]
+}
+
+model GameSetting {
+  id     String     @id @default(cuid())
+  gameId String     @unique
+  game   EscapeGame @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  // Chronomètre
+  timerMode    String  @default("GLOBAL") // NONE | GLOBAL | PER_STEP
+  maxMinutes   Int?    @default(45)
+  pauseAllowed Boolean @default(true)
+  endOnTimeout Boolean @default(true)
+
+  // Scoring
+  basePoints         Int     @default(100)
+  timeBonusEnabled   Boolean @default(true)
+  timeBonusMax       Int     @default(50)
+  noHintBonusEnabled Boolean @default(true)
+  noHintBonus        Int     @default(20)
+  streakBonusEnabled Boolean @default(true)
+  streakBonus        Int     @default(10)
+  hintPenaltyEnabled Boolean @default(true)
+  wrongAnswerPenalty Int     @default(0)
+  timeoutPenalty     Int     @default(0)
+
+  // Classement
+  leaderboardEnabled Boolean @default(true)
+  leaderboardMethod  String  @default("PEDAGOGICAL") // PEDAGOGICAL | SCORE | TIME | COMPLETION | HINTS
+  showLiveRanking    Boolean @default(true)
+
+  // Immersion (désactivable par l'apprenant)
+  soundEnabled      Boolean @default(false)
+  musicEnabled      Boolean @default(false)
+  animationsEnabled Boolean @default(true)
+  themeKey          String  @default("mission")
+
+  updatedAt DateTime @updatedAt
+}
+
+model GameStep {
+  id                 String     @id @default(cuid())
+  gameId             String
+  game               EscapeGame @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  order              Int
+  title              String
+  description        String     @default("")
+  instruction        String     @default("")
+  content            String     @default("")
+  imageUrl           String?
+  fileUrl            String?
+  fileName           String?
+  videoUrl           String?
+  unlockCode         String? // code à obtenir en réussissant cette étape
+  unlockConditions   String     @default("{\"all\":[{\"type\":\"previous_step\"}]}") // JSON typé (src/lib/engine/unlock.ts)
+  points             Int        @default(100)
+  recommendedSeconds Int        @default(480)
+  difficulty         String     @default("MEDIUM")
+  isFinal            Boolean    @default(false)
+  successFeedback    String     @default("")
+  errorFeedback      String     @default("")
+  explanation        String     @default("")
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  puzzle  Puzzle?
+  answers PlayerAnswer[]
+  events  ScoreEvent[]
+
+  @@unique([gameId, order])
+}
+
+model Puzzle {
+  id              String   @id @default(cuid())
+  stepId          String   @unique
+  step            GameStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  type            String   @default("SHORT_ANSWER") // voir src/lib/puzzles/registry.ts
+  prompt          String   @default("")
+  config          String   @default("{}") // JSON spécifique au type
+  validationMode  String   @default("AUTO") // AUTO | MANUAL
+  maxAttempts     Int?
+  caseSensitive   Boolean  @default(false)
+  accentSensitive Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  answers Answer[]
+  hints   Hint[]
+  skills  PuzzleSkill[]
+}
+
+model Answer {
+  id        String   @id @default(cuid())
+  puzzleId  String
+  puzzle    Puzzle   @relation(fields: [puzzleId], references: [id], onDelete: Cascade)
+  value     String // JSON (string, number, string[], mapping…) selon le type d'énigme
+  isPrimary Boolean  @default(false)
+  label     String?
+  createdAt DateTime @default(now())
+}
+
+model Hint {
+  id              String   @id @default(cuid())
+  puzzleId        String
+  puzzle          Puzzle   @relation(fields: [puzzleId], references: [id], onDelete: Cascade)
+  order           Int
+  text            String
+  pointCost       Int      @default(10)
+  timeCostSeconds Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  requests HintRequest[]
+
+  @@unique([puzzleId, order])
 }
 
 model Skill {
-  id           String     @id @default(cuid())
-  simulationId String
-  simulation   Simulation @relation(fields: [simulationId], references: [id], onDelete: Cascade)
-  name         String
-  description  String?
-  icon         String?
-  order        Int        @default(0)
+  id          String   @id @default(cuid())
+  ownerId     String
+  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name        String
+  description String   @default("")
+  category    String?
+  createdAt   DateTime @default(now())
 
-  userSkills UserSkill[]
+  puzzles PuzzleSkill[]
+
+  @@unique([ownerId, name])
 }
 
-model Mission {
-  id                      String     @id @default(cuid())
-  simulationId            String
-  simulation              Simulation @relation(fields: [simulationId], references: [id], onDelete: Cascade)
-  dayNumber               Int
-  title                   String
-  description             String
-  context                 String
-  objective               String
-  estimatedDurationMinutes Int       @default(15)
-  difficulty              String     @default("MEDIUM")
-  xpAvailable             Int        @default(150)
-  maxScore                Int        @default(100)
-  order                   Int        @default(0)
-  createdAt               DateTime   @default(now())
-  updatedAt               DateTime   @updatedAt
+model PuzzleSkill {
+  id       String @id @default(cuid())
+  puzzleId String
+  puzzle   Puzzle @relation(fields: [puzzleId], references: [id], onDelete: Cascade)
+  skillId  String
+  skill    Skill  @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  weight   Int    @default(1)
 
-  situations Situation[]
+  @@unique([puzzleId, skillId])
 }
 
-model Situation {
-  id              String     @id @default(cuid())
-  missionId       String
-  mission         Mission    @relation(fields: [missionId], references: [id], onDelete: Cascade)
-  title           String
-  description     String
-  order           Int        @default(0)
-  difficulty      String     @default("MEDIUM")
-  timeLimitSeconds Int?
+// ---------------------------------------------------------------------------
+// Sessions de jeu, participants, équipes
+// ---------------------------------------------------------------------------
 
-  choices   Choice[]
-  decisions Decision[]
+model GameSession {
+  id                 String     @id @default(cuid())
+  gameId             String
+  game               EscapeGame @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  hostId             String
+  host               User       @relation("SessionHost", fields: [hostId], references: [id])
+  code               String     @unique // 6 caractères sans ambiguïté
+  status             String     @default("LOBBY") // LOBBY | RUNNING | PAUSED | ENDED
+  mode               String     @default("INDIVIDUAL") // INDIVIDUAL | TEAM (copié du jeu au lancement)
+  gameSnapshot       String // JSON figé du jeu au lancement (étapes, énigmes, réponses, indices)
+  durationSeconds    Int? // null = pas de limite
+  startedAt          DateTime?
+  pausedAt           DateTime?
+  pausedTotalSeconds Int        @default(0)
+  extendedSeconds    Int        @default(0)
+  endedAt            DateTime?
+  endReason          String? // TRAINER | TIMEOUT | ALL_COMPLETED
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  players    SessionPlayer[]
+  teams      Team[]
+  progresses PlayerProgress[]
+  events     AnalyticsEvent[]
 }
 
-model Choice {
-  id          String @id @default(cuid())
-  situationId String
-  situation   Situation @relation(fields: [situationId], references: [id], onDelete: Cascade)
-  label       String
-  text        String
-  order       Int    @default(0)
+model SessionPlayer {
+  id           String      @id @default(cuid())
+  sessionId    String
+  session      GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  displayName  String
+  firstName    String
+  tokenVersion Int         @default(1)
+  connection   String      @default("ONLINE") // ONLINE | OFFLINE
+  lastSeenAt   DateTime    @default(now())
+  joinedAt     DateTime    @default(now())
 
-  consequence Consequence?
-  decisions   Decision[]
+  teamMembership TeamMember?
+  progress       PlayerProgress? @relation("PlayerProgressActor")
+  answers        PlayerAnswer[]
+  hintRequests   HintRequest[]
+
+  @@unique([sessionId, displayName])
 }
 
-model Consequence {
-  id              String  @id @default(cuid())
-  choiceId        String  @unique
-  choice          Choice  @relation(fields: [choiceId], references: [id], onDelete: Cascade)
-  outcomeText     String
-  coachFeedback   String
-  variableDeltas  String  // JSON map, e.g. {"customer_satisfaction":15,"communication":10}
-  skillDeltas     String  // JSON map, e.g. {"<skillId>":8}
-  xpAward         Int     @default(0)
-  nextSituationId String? // branching override; null = next situation in mission order
+model Team {
+  id        String      @id @default(cuid())
+  sessionId String
+  session   GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  name      String
+  color     String      @default("#5eead4")
+  createdAt DateTime    @default(now())
+
+  members  TeamMember[]
+  progress PlayerProgress? @relation("TeamProgressActor")
+
+  @@unique([sessionId, name])
 }
 
-model Progress {
-  id                 String         @id @default(cuid())
-  userId             String
-  user               User           @relation(fields: [userId], references: [id])
-  simulationId       String
-  simulation         Simulation     @relation(fields: [simulationId], references: [id])
-  status             String         @default("IN_PROGRESS")
-  currentMissionId   String?
-  currentSituationId String?
-  score              Int            @default(0)
-  xp                 Int            @default(0)
-  variablesJson      String         @default("{}")
-  startedAt          DateTime       @default(now())
-  completedAt        DateTime?
-
-  decisions      Decision[]
-  userSkills     UserSkill[]
-  xpTransactions XPTransaction[]
-  userBadges     UserBadge[]
-  report         Report?
-
-  @@unique([userId, simulationId])
+model TeamMember {
+  id       String        @id @default(cuid())
+  teamId   String
+  team     Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  playerId String        @unique
+  player   SessionPlayer @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  role     String        @default("MEMBER") // CAPTAIN | MEMBER
+  joinedAt DateTime      @default(now())
 }
 
-model Decision {
-  id               String    @id @default(cuid())
+// ---------------------------------------------------------------------------
+// Progression, réponses, score, indices demandés
+// ---------------------------------------------------------------------------
+
+// Un « acteur » est soit un joueur (mode individuel) soit une équipe (mode équipe).
+model PlayerProgress {
+  id               String         @id @default(cuid())
+  sessionId        String
+  session          GameSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  actorType        String         @default("PLAYER") // PLAYER | TEAM
+  playerId         String?        @unique
+  player           SessionPlayer? @relation("PlayerProgressActor", fields: [playerId], references: [id], onDelete: Cascade)
+  teamId           String?        @unique
+  team             Team?          @relation("TeamProgressActor", fields: [teamId], references: [id], onDelete: Cascade)
+  status           String         @default("NOT_STARTED") // NOT_STARTED | IN_PROGRESS | COMPLETED | ABANDONED | TIMED_OUT
+  currentStepId    String?
+  stepStates       String         @default("{}") // JSON { [stepId]: { state, startedAt, completedAt, attempts, hintsUsed } }
+  score            Int            @default(0)
+  hintsUsed        Int            @default(0)
+  wrongAnswers     Int            @default(0)
+  stepsCompleted   Int            @default(0)
+  streak           Int            @default(0)
+  startedAt        DateTime?
+  completedAt      DateTime?
+  timeSpentSeconds Int            @default(0)
+  updatedAt        DateTime       @updatedAt
+
+  answers      PlayerAnswer[]
+  scoreEvents  ScoreEvent[]
+  hintRequests HintRequest[]
+  badges       PlayerBadge[]
+  result       GameResult?
+}
+
+model PlayerAnswer {
+  id               String         @id @default(cuid())
   progressId       String
-  progress         Progress  @relation(fields: [progressId], references: [id], onDelete: Cascade)
-  situationId      String
-  situation        Situation @relation(fields: [situationId], references: [id])
-  choiceId         String
-  choice           Choice    @relation(fields: [choiceId], references: [id])
+  progress         PlayerProgress @relation(fields: [progressId], references: [id], onDelete: Cascade)
+  playerId         String?
+  player           SessionPlayer? @relation(fields: [playerId], references: [id], onDelete: SetNull)
+  stepId           String
+  step             GameStep       @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  submitted        String // JSON
+  isCorrect        Boolean
+  status           String         @default("AUTO") // AUTO | PENDING | APPROVED | REJECTED
+  scoreDelta       Int            @default(0)
   timeTakenSeconds Int?
-  timedOut         Boolean   @default(false)
-  createdAt        DateTime  @default(now())
+  createdAt        DateTime       @default(now())
 }
 
-model UserSkill {
-  id         String   @id @default(cuid())
+model ScoreEvent {
+  id         String         @id @default(cuid())
   progressId String
-  progress   Progress @relation(fields: [progressId], references: [id], onDelete: Cascade)
-  skillId    String
-  skill      Skill    @relation(fields: [skillId], references: [id])
-  score      Int      @default(0)
-
-  @@unique([progressId, skillId])
+  progress   PlayerProgress @relation(fields: [progressId], references: [id], onDelete: Cascade)
+  stepId     String?
+  step       GameStep?      @relation(fields: [stepId], references: [id], onDelete: SetNull)
+  type       String // STEP_SUCCESS | TIME_BONUS | NO_HINT_BONUS | STREAK_BONUS | HINT_PENALTY | WRONG_ANSWER_PENALTY | TIMEOUT_PENALTY | TRAINER_ADJUSTMENT
+  delta      Int
+  note       String?
+  createdAt  DateTime       @default(now())
 }
 
-model XPTransaction {
-  id         String   @id @default(cuid())
+model HintRequest {
+  id         String         @id @default(cuid())
   progressId String
-  progress   Progress @relation(fields: [progressId], references: [id], onDelete: Cascade)
-  amount     Int
-  reason     String
-  createdAt  DateTime @default(now())
+  progress   PlayerProgress @relation(fields: [progressId], references: [id], onDelete: Cascade)
+  playerId   String?
+  player     SessionPlayer? @relation(fields: [playerId], references: [id], onDelete: SetNull)
+  hintId     String
+  hint       Hint           @relation(fields: [hintId], references: [id], onDelete: Cascade)
+  grantedBy  String         @default("PLAYER") // PLAYER | TRAINER
+  pointCost  Int
+  createdAt  DateTime       @default(now())
+
+  @@unique([progressId, hintId])
 }
+
+// ---------------------------------------------------------------------------
+// Badges, résultats, IA, analytics, fichiers
+// ---------------------------------------------------------------------------
 
 model Badge {
-  id           String      @id @default(cuid())
-  simulationId String
-  simulation   Simulation  @relation(fields: [simulationId], references: [id], onDelete: Cascade)
-  code         String
-  name         String
-  description  String
-  icon         String
-  criteriaType String      // e.g. "first_decision", "mission_complete", "perfect_mission", "skill_threshold"
-  criteriaValue String?    // free-form parameter for the criteria (e.g. mission order, skill name+score)
+  id          String      @id @default(cuid())
+  code        String
+  name        String
+  description String
+  icon        String      @default("trophy")
+  ruleType    String // FIRST_ESCAPE | MASTER_SOLVER | NO_HINT | SPEED_RUNNER | PERFECT_SCORE | TEAM_PLAYER | CUSTOM
+  ruleConfig  String      @default("{}")
+  isSystem    Boolean     @default(false)
+  gameId      String?
+  game        EscapeGame? @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  ownerId     String?
+  owner       User?       @relation("BadgeOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  createdAt   DateTime    @default(now())
 
-  userBadges UserBadge[]
+  awards PlayerBadge[]
 
-  @@unique([simulationId, code])
+  @@unique([gameId, code])
 }
 
-model UserBadge {
-  id         String   @id @default(cuid())
+model PlayerBadge {
+  id         String         @id @default(cuid())
   progressId String
-  progress   Progress @relation(fields: [progressId], references: [id], onDelete: Cascade)
+  progress   PlayerProgress @relation(fields: [progressId], references: [id], onDelete: Cascade)
   badgeId    String
-  badge      Badge    @relation(fields: [badgeId], references: [id])
-  earnedAt   DateTime @default(now())
+  badge      Badge          @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  earnedAt   DateTime       @default(now())
 
   @@unique([progressId, badgeId])
 }
 
-model Report {
-  id            String   @id @default(cuid())
-  progressId    String   @unique
-  progress      Progress @relation(fields: [progressId], references: [id], onDelete: Cascade)
-  globalScore   Int
-  strengths     String   // JSON string[]
-  improvements  String   // JSON string[]
-  keyDecisions  String   // JSON [{situation, choice, impact}]
-  recommendation String
-  generatedAt   DateTime @default(now())
+model GameResult {
+  id               String         @id @default(cuid())
+  progressId       String         @unique
+  progress         PlayerProgress @relation(fields: [progressId], references: [id], onDelete: Cascade)
+  score            Int
+  rank             Int?
+  timeSpentSeconds Int
+  stepsCompleted   Int
+  stepsTotal       Int
+  hintsUsed        Int
+  wrongAnswers     Int
+  skillsJson       String         @default("[]") // [{ skillId, name, validated, attempts }]
+  recommendations  String         @default("[]") // string[]
+  generatedAt      DateTime       @default(now())
 }
 
-model AIInteraction {
-  id        String             @id @default(cuid())
+model AIJob {
+  id        String      @id @default(cuid())
+  ownerId   String
+  owner     User        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  gameId    String?
+  game      EscapeGame? @relation(fields: [gameId], references: [id], onDelete: SetNull)
+  type      String // GENERATE_GAME | GENERATE_STEP | IMPORT_COURSE | GENERATE_FEEDBACK
+  status    String      @default("PENDING") // PENDING | RUNNING | DONE | FAILED
+  provider  String      @default("stub")
+  input     String // JSON
+  output    String? // JSON
+  error     String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+}
+
+model AnalyticsEvent {
+  id        String       @id @default(cuid())
+  name      String // game_created | game_published | session_started | player_joined | step_started | answer_submitted | answer_correct | answer_wrong | hint_requested | step_completed | game_completed | game_abandoned
   userId    String?
-  user      User?              @relation(fields: [userId], references: [id])
-  type      String            
-  input     String             // JSON
-  output    String             // JSON
-  createdAt DateTime           @default(now())
+  user      User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  gameId    String?
+  game      EscapeGame?  @relation(fields: [gameId], references: [id], onDelete: SetNull)
+  sessionId String?
+  session   GameSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  actorId   String? // playerId ou teamId
+  payload   String       @default("{}")
+  createdAt DateTime     @default(now())
+
+  @@index([name, createdAt])
+  @@index([sessionId])
+}
+
+model Upload {
+  id           String   @id @default(cuid())
+  ownerId      String
+  owner        User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  originalName String
+  storedName   String   @unique
+  mime         String
+  size         Int
+  url          String
+  createdAt    DateTime @default(now())
 }
