@@ -5,6 +5,7 @@ import { getBus } from "@/lib/realtime/bus";
 import { loadPlayerViews, loadQuestionView, loadRevealView, rankPlayers } from "./state";
 import { scoreAnswer, xpForScore } from "./scoring";
 import { levelFor } from "./levels";
+import { persistGameReport } from "./report";
 import { track } from "@/lib/analytics";
 import { JOKER_TYPES, type JokerType } from "@/lib/constants";
 import { fiftyFiftyHidden, type JokerUseResult } from "./jokers";
@@ -246,6 +247,7 @@ export async function finishGame(gameId: string) {
     await prisma.xPTransaction.create({ data: { userId: p.userId, gamePlayerId: p.id, amount: xp, reason: "GAME_SCORE" } });
     if (p.userId) await prisma.user.update({ where: { id: p.userId }, data: { totalXp: { increment: xp } } });
   }
+  await persistGameReport(gameId);
   await track("quiz_completed", { userId: game.hostId, gameId, payload: { players: ranked.length } });
   getBus().publish(gameId, { type: "game_finished" });
 }

@@ -48,7 +48,7 @@ npm run dev
 | 7 | Scoring, rapidité, séries | ✅ |
 | 8 | Classement + podium | ✅ |
 | 9 | Jokers | ✅ |
-| 10 | Statistiques | ⏳ |
+| 10 | Statistiques | ✅ |
 | 11 | IA | ⏳ |
 | 12 | Badges, niveaux, XP | ⏳ |
 | 13 | Responsive + accessibilité | ⏳ |
