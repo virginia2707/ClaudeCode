@@ -140,6 +140,8 @@ model Game {
   quizId            String
   hostId            String?
   code              String    @unique // 6-char join code
+  // Secret allowing an account-less host (demo mode) to drive the game
+  hostToken         String?   @unique
   status            String    @default("LOBBY") // GameStatus
   mode              String    @default("INDIVIDUAL") // GameMode
   // Index of the current GameQuestion (-1 while in lobby)
