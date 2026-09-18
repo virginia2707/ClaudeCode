@@ -43,7 +43,7 @@ npm run dev
 | 2 | Authentification, utilisateurs, rôles | ✅ |
 | 3 | Création et édition des quiz | ✅ |
 | 4 | Création d'une partie + code | ✅ |
-| 5 | Lobby temps réel | ⏳ |
+| 5 | Lobby temps réel | ✅ |
 | 6 | Moteur de quiz temps réel | ⏳ |
 | 7 | Scoring, rapidité, séries | ⏳ |
 | 8 | Classement + podium | ⏳ |
