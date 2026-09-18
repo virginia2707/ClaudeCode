@@ -48,6 +48,9 @@ export default async function GameOverviewPage(props: PageProps<"/app/games/[id]
             <ButtonLink href={`/app/games/${game.id}/preview`} variant="ghost">
               Prévisualiser
             </ButtonLink>
+            <ButtonLink href={`/app/games/${game.id}/stats`} variant="ghost">
+              Statistiques
+            </ButtonLink>
             {game.status === "PUBLISHED" ? (
               <ButtonLink href={`/app/games/${game.id}/launch`}>
                 <IconPlay size={16} /> Lancer une session

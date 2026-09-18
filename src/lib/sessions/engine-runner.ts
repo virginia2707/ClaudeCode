@@ -7,6 +7,8 @@ import { computeTimerState, type TimerState } from "@/lib/engine/timer";
 import { completionRatio, computeStepViews, getStepProgress, isMissionComplete, readStepStates, type StepProgress, type StepStates, type StepView } from "@/lib/engine/progress";
 import { clampScore, computeStepScore, type ScoringSettings } from "@/lib/engine/scoring";
 import { awardableBadges } from "@/lib/engine/badges";
+import { rankEntries, type LeaderboardEntry } from "@/lib/engine/leaderboard";
+import type { LeaderboardMethod } from "@/lib/constants";
 import { publish } from "@/lib/realtime/hub";
 import { track } from "@/lib/analytics/track";
 import { rateLimit } from "@/lib/auth/rate-limit";
@@ -70,6 +72,8 @@ export type LearnerState = {
   currentStep: LearnerStepView | null;
   currentStepLocked: { reason?: string; needsCode?: boolean } | null;
   completed: boolean;
+  /** Classement, uniquement si le formateur l'a activé. */
+  leaderboard: { rank: number; name: string; score: number; stepsCompleted: number; isMe: boolean }[] | null;
 };
 
 /** Construit l'état complet servi à un apprenant. Les réponses ne sortent jamais du serveur. */
@@ -140,7 +144,45 @@ export async function getLearnerState(sessionId: string, progressId: string): Pr
     currentStep: currentSnapshotStep ? toLearnerStepView(currentSnapshotStep, revealedHints, currentProgress?.attempts ?? 0) : null,
     currentStepLocked: !currentSnapshotStep && firstLocked ? { reason: firstLocked.lockedReason, needsCode: firstLocked.needsCode } : null,
     completed,
+    leaderboard: await buildLearnerLeaderboard(session, snapshot, progress.id, completed),
   };
+}
+
+/**
+ * Classement servi à l'apprenant. Masqué pendant la partie si le formateur a
+ * désactivé l'affichage en direct ; toujours disponible en fin de mission.
+ */
+async function buildLearnerLeaderboard(session: SessionRecord, snapshot: GameSnapshot, progressId: string, completed: boolean) {
+  if (!snapshot.settings.leaderboardEnabled) return null;
+  const finished = completed || session.status === "ENDED";
+  if (!snapshot.settings.showLiveRanking && !finished) return null;
+
+  const progresses = await prisma.playerProgress.findMany({
+    where: { sessionId: session.id },
+    include: { player: { select: { displayName: true } }, team: { select: { name: true } } },
+  });
+  const entries: LeaderboardEntry[] = progresses.map((p) => {
+    const states = readStepStates(p.stepStates);
+    const stepsCompleted = snapshot.steps.filter((s) => states[s.id]?.state === "DONE").length;
+    return {
+      actorId: p.id,
+      name: p.team?.name ?? p.player?.displayName ?? "Participant",
+      score: p.score,
+      stepsCompleted,
+      skillsValidated: 0,
+      hintsUsed: p.hintsUsed,
+      wrongAnswers: p.wrongAnswers,
+      timeSpentSeconds: p.timeSpentSeconds,
+      completed: p.status === "COMPLETED",
+    };
+  });
+  return rankEntries(entries, (snapshot.settings.leaderboardMethod as LeaderboardMethod) ?? "PEDAGOGICAL").map((r) => ({
+    rank: r.rank,
+    name: r.name,
+    score: r.score,
+    stepsCompleted: r.stepsCompleted,
+    isMe: r.actorId === progressId,
+  }));
 }
 
 export type SubmitResult =

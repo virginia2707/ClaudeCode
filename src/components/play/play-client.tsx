@@ -137,6 +137,7 @@ export function PlayClient({ initialState, sessionCode }: { initialState: Learne
             Voir mon résultat détaillé
           </a>
         </div>
+        {state.leaderboard ? <Leaderboard rows={state.leaderboard} /> : null}
       </Shell>
     );
   }
@@ -253,6 +254,8 @@ export function PlayClient({ initialState, sessionCode }: { initialState: Learne
         </div>
       ) : null}
 
+      {state.leaderboard && state.leaderboard.length > 1 ? <Leaderboard rows={state.leaderboard} compact /> : null}
+
       <section className="mt-5" aria-label="Progression de la mission">
         <ol className="space-y-1.5">
           {state.steps.map((s, i) => (
@@ -267,6 +270,27 @@ export function PlayClient({ initialState, sessionCode }: { initialState: Learne
         </ol>
       </section>
     </Shell>
+  );
+}
+
+function Leaderboard({ rows, compact = false }: { rows: { rank: number; name: string; score: number; stepsCompleted: number; isMe: boolean }[]; compact?: boolean }) {
+  const shown = compact ? rows.slice(0, 5) : rows;
+  return (
+    <section className="card p-4 mt-4" aria-labelledby="lb-h">
+      <h2 id="lb-h" className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+        Classement
+      </h2>
+      <ol className="mt-2 space-y-1.5">
+        {shown.map((r) => (
+          <li key={`${r.rank}-${r.name}`} className={cn("flex items-center gap-3 text-sm rounded px-2 py-1", r.isMe && "bg-accent-soft text-accent")}>
+            <span className="w-5 tabular-nums text-text-muted">{r.rank}</span>
+            <span className="min-w-0 flex-1 truncate">{r.name}</span>
+            <span className="text-xs text-text-muted tabular-nums">{r.stepsCompleted} ét.</span>
+            <span className="tabular-nums font-medium">{r.score}</span>
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }
 

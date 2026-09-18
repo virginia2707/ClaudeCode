@@ -77,4 +77,8 @@ legacy/                ancien prototype, exclu du build (supprimable)
 | 6 → 10 | Moteur : validation serveur, codes de déblocage, indices à coût, progression, chronomètre serveur (pause, prolongation, expiration) | DONE |
 | 11 | Sessions : lancement, snapshot figé, code à 6 caractères, QR code, lobby, pilotage live (pause, reprise, +5 min, fin, indice offert, déblocage, validation manuelle) | DONE |
 | 12 | Mode apprenant : rejoindre sans compte, écran mobile-first, temps réel (SSE + repli), feedback, rapport de fin avec compétences et badges | DONE |
-| 13 → 20 | Mode équipe, classement, rapports et statistiques, badges, IA, démo Excel, responsive, sécurité | à venir |
+| 13 | Mode équipe : équipes nommées, progression partagée en temps réel, badge d'équipe | DONE |
+| 14 | Score et classement : journal d'événements, 5 méthodes, classement visible par l'apprenant | DONE |
+| 15 | Rapports et statistiques : résultats de session, énigmes difficiles, compétences, comparaison de sessions | DONE |
+| 16 | Badges : 6 badges système, règles extensibles, attribution automatique et affichage | DONE |
+| 17 → 20 | Génération IA, démo Excel, responsive et accessibilité, sécurité et performance | à venir |
