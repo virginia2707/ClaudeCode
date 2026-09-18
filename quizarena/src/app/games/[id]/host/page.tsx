@@ -7,7 +7,7 @@ import { reconcileGame } from "@/lib/game/engine";
 import { Logo } from "@/components/ui/logo";
 import { Pill } from "@/components/ui/pill";
 import { MotionToggle } from "@/components/ui/motion-toggle";
-import { HostLobby } from "@/components/host/host-lobby";
+import { HostScreen } from "@/components/host/host-screen";
 
 export const metadata: Metadata = { title: "Écran formateur" };
 
@@ -39,7 +39,7 @@ export default async function HostPage({ params }: { params: Promise<{ id: strin
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{state.title}</h1>
           {state.description ? <p className="mt-1 text-text-muted">{state.description}</p> : null}
         </div>
-        <HostLobby gameId={game.id} initialState={state} joinUrl={joinUrl(game.code)} />
+        <HostScreen gameId={game.id} initialState={state} joinUrl={joinUrl(game.code)} />
       </main>
     </div>
   );

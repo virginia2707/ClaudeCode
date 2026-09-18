@@ -1,15 +1,24 @@
 "use client";
 
-import { useGameStream } from "@/hooks/use-game-stream";
+import type { ReactNode } from "react";
+import type { ConnectionStatus } from "@/hooks/use-game-stream";
 import type { GameStatePublic } from "@/lib/realtime/events";
 import { Pill } from "@/components/ui/pill";
 import { ConnectionBadge } from "@/components/play/connection-badge";
 import { CodePanel } from "./code-panel";
 import { cn } from "@/lib/utils";
 
-export function HostLobby({ gameId, initialState, joinUrl }: { gameId: string; initialState: GameStatePublic; joinUrl: string }) {
-  const { state, connection } = useGameStream(gameId, initialState);
-  if (!state) return null;
+export function HostLobby({
+  state,
+  connection,
+  joinUrl,
+  startButton,
+}: {
+  state: GameStatePublic;
+  connection: ConnectionStatus;
+  joinUrl: string;
+  startButton: ReactNode;
+}) {
   const connected = state.players.filter((p) => p.connected).length;
   const byTeam = state.mode === "TEAM" ? state.teams.map((t) => ({ team: t, players: state.players.filter((p) => p.teamId === t.id) })) : null;
 
@@ -56,12 +65,7 @@ export function HostLobby({ gameId, initialState, joinUrl }: { gameId: string; i
             ))}
           </ul>
         )}
-        <div className="mt-5">
-          <button type="button" className="btn btn-spark btn-lg" disabled>
-            START QUIZ
-          </button>
-          <p className="mt-2 text-xs text-text-muted">Le démarrage arrive avec le moteur de quiz (phase 6).</p>
-        </div>
+        <div className="mt-5">{startButton}</div>
       </section>
     </div>
   );

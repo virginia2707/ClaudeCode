@@ -149,8 +149,9 @@ model Game {
   // Server-authoritative timestamps of the current question
   questionStartedAt DateTime?
   questionEndsAt    DateTime?
-  // Status to restore when un-pausing
+  // Status to restore when un-pausing, and when the pause started
   pausedFromStatus  String?
+  pausedAt          DateTime?
   // Immutable snapshot of quiz settings at game creation (see QuizSettingsSchema)
   settings          String    @default("{}")
   isDemo            Boolean   @default(false)
