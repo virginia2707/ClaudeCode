@@ -34,7 +34,7 @@ await shot(page, "e2e-games-list.png", { fullPage: true });
 await page.goto(base + "/app/games?status=DRAFT", { waitUntil: "load" });
 await page.locator("article", { hasText: "Jeu vide" }).locator("a", { hasText: "Ouvrir" }).click();
 await page.waitForURL(/\/app\/games\/[a-z0-9]+$/);
-const emptyUrl = page.url();
+check("empty game url", /\/app\/games\/[a-z0-9]+$/.test(page.url()));
 check("empty game shows blocking issue", (await page.textContent("main")).includes("Ajoutez au moins une étape"));
 check("publish button disabled on empty game", await page.locator("button", { hasText: "Publier" }).isDisabled());
 

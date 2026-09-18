@@ -68,4 +68,5 @@ legacy/                ancien prototype, exclu du build (supprimable)
 | 1 | Architecture + design system + landing page | DONE |
 | 2 | Authentification + rôles (ADMIN / TRAINER / LEARNER), routes protégées, 403, rate limiting | DONE |
 | 3 | Dashboard formateur : jeux (filtres, publier, dépublier, dupliquer, archiver, restaurer, supprimer), sessions, compétences, paramètres | DONE |
-| 4 → 20 | Création, step builder, moteur, sessions, apprenant, équipes, score, rapports, badges, IA, démo, responsive, sécurité | à venir |
+| 4 | Création / modification d'un Escape Game (formulaire complet), réglages (chronomètre, score, classement, immersion), upload de fichiers | DONE |
+| 5 → 20 | Step builder, moteur, sessions, apprenant, équipes, score, rapports, badges, IA, démo, responsive, sécurité | à venir |

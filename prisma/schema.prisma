@@ -86,6 +86,7 @@ model EscapeGame {
   difficulty       String        @default("MEDIUM") // EASY | MEDIUM | HARD
   estimatedMinutes Int           @default(45)
   objective        String        @default("")
+  targetSkills     String        @default("[]") // JSON string[] : compétences travaillées (affichage, IA)
   scenario         String        @default("")
   introduction     String        @default("")
   finalMessage     String        @default("")

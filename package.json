@@ -12,7 +12,7 @@
     "seed": "tsx prisma/seed.ts",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
-    "test:e2e": "node tests/e2e/auth.mjs && node tests/e2e/dashboard.mjs",
+    "test:e2e": "node tests/e2e/auth.mjs && node tests/e2e/dashboard.mjs && node tests/e2e/game-form.mjs",
     "seed:fixtures": "tsx tests/fixtures/seed-test-games.ts"
   },
   "prisma": {
