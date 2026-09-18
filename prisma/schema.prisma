@@ -1,0 +1,234 @@
+// The Apprentice — data model
+// SQLite is used for the MVP (zero external infra, ships in one file).
+// Swapping to Postgres later only requires changing `provider` + `url`.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// SQLite has no native enum support in Prisma, so the enums below are
+// modeled as `String` columns. Allowed values are enforced in application
+// code — see src/lib/constants.ts for the canonical lists:
+// Role: ADMIN | FORMATEUR | APPRENANT
+// Plan: FREE | PRO | BUSINESS | ENTERPRISE
+// SimulationStatus: DRAFT | PUBLISHED | ARCHIVED
+// Difficulty: EASY | MEDIUM | HARD | EXPERT
+// ProgressStatus: IN_PROGRESS | COMPLETED | ABANDONED
+// AIInteractionType: GENERATE_SIMULATION | COACH_HINT | GENERATE_FEEDBACK | GENERATE_REPORT
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         String   @default("APPRENANT")
+  plan         String   @default("FREE")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  simulationsCreated Simulation[]    @relation("CreatedSimulations")
+  progresses         Progress[]
+  aiInteractions     AIInteraction[]
+}
+
+model Simulation {
+  id          String            @id @default(cuid())
+  title       String
+  job         String
+  company     String
+  context     String
+  description String
+  durationDays Int              @default(5)
+  status      String            @default("DRAFT")
+  accessCode  String?           @unique
+  createdById String
+  createdBy   User              @relation("CreatedSimulations", fields: [createdById], references: [id])
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  skills     Skill[]
+  missions   Mission[]
+  badges     Badge[]
+  progresses Progress[]
+}
+
+model Skill {
+  id           String     @id @default(cuid())
+  simulationId String
+  simulation   Simulation @relation(fields: [simulationId], references: [id], onDelete: Cascade)
+  name         String
+  description  String?
+  icon         String?
+  order        Int        @default(0)
+
+  userSkills UserSkill[]
+}
+
+model Mission {
+  id                      String     @id @default(cuid())
+  simulationId            String
+  simulation              Simulation @relation(fields: [simulationId], references: [id], onDelete: Cascade)
+  dayNumber               Int
+  title                   String
+  description             String
+  context                 String
+  objective               String
+  estimatedDurationMinutes Int       @default(15)
+  difficulty              String     @default("MEDIUM")
+  xpAvailable             Int        @default(150)
+  maxScore                Int        @default(100)
+  order                   Int        @default(0)
+  createdAt               DateTime   @default(now())
+  updatedAt               DateTime   @updatedAt
+
+  situations Situation[]
+}
+
+model Situation {
+  id              String     @id @default(cuid())
+  missionId       String
+  mission         Mission    @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  title           String
+  description     String
+  order           Int        @default(0)
+  difficulty      String     @default("MEDIUM")
+  timeLimitSeconds Int?
+
+  choices   Choice[]
+  decisions Decision[]
+}
+
+model Choice {
+  id          String @id @default(cuid())
+  situationId String
+  situation   Situation @relation(fields: [situationId], references: [id], onDelete: Cascade)
+  label       String
+  text        String
+  order       Int    @default(0)
+
+  consequence Consequence?
+  decisions   Decision[]
+}
+
+model Consequence {
+  id              String  @id @default(cuid())
+  choiceId        String  @unique
+  choice          Choice  @relation(fields: [choiceId], references: [id], onDelete: Cascade)
+  outcomeText     String
+  coachFeedback   String
+  variableDeltas  String  // JSON map, e.g. {"customer_satisfaction":15,"communication":10}
+  skillDeltas     String  // JSON map, e.g. {"<skillId>":8}
+  xpAward         Int     @default(0)
+  nextSituationId String? // branching override; null = next situation in mission order
+}
+
+model Progress {
+  id                 String         @id @default(cuid())
+  userId             String
+  user               User           @relation(fields: [userId], references: [id])
+  simulationId       String
+  simulation         Simulation     @relation(fields: [simulationId], references: [id])
+  status             String         @default("IN_PROGRESS")
+  currentMissionId   String?
+  currentSituationId String?
+  score              Int            @default(0)
+  xp                 Int            @default(0)
+  variablesJson      String         @default("{}")
+  startedAt          DateTime       @default(now())
+  completedAt        DateTime?
+
+  decisions      Decision[]
+  userSkills     UserSkill[]
+  xpTransactions XPTransaction[]
+  userBadges     UserBadge[]
+  report         Report?
+
+  @@unique([userId, simulationId])
+}
+
+model Decision {
+  id               String    @id @default(cuid())
+  progressId       String
+  progress         Progress  @relation(fields: [progressId], references: [id], onDelete: Cascade)
+  situationId      String
+  situation        Situation @relation(fields: [situationId], references: [id])
+  choiceId         String
+  choice           Choice    @relation(fields: [choiceId], references: [id])
+  timeTakenSeconds Int?
+  timedOut         Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+}
+
+model UserSkill {
+  id         String   @id @default(cuid())
+  progressId String
+  progress   Progress @relation(fields: [progressId], references: [id], onDelete: Cascade)
+  skillId    String
+  skill      Skill    @relation(fields: [skillId], references: [id])
+  score      Int      @default(0)
+
+  @@unique([progressId, skillId])
+}
+
+model XPTransaction {
+  id         String   @id @default(cuid())
+  progressId String
+  progress   Progress @relation(fields: [progressId], references: [id], onDelete: Cascade)
+  amount     Int
+  reason     String
+  createdAt  DateTime @default(now())
+}
+
+model Badge {
+  id           String      @id @default(cuid())
+  simulationId String
+  simulation   Simulation  @relation(fields: [simulationId], references: [id], onDelete: Cascade)
+  code         String
+  name         String
+  description  String
+  icon         String
+  criteriaType String      // e.g. "first_decision", "mission_complete", "perfect_mission", "skill_threshold"
+  criteriaValue String?    // free-form parameter for the criteria (e.g. mission order, skill name+score)
+
+  userBadges UserBadge[]
+
+  @@unique([simulationId, code])
+}
+
+model UserBadge {
+  id         String   @id @default(cuid())
+  progressId String
+  progress   Progress @relation(fields: [progressId], references: [id], onDelete: Cascade)
+  badgeId    String
+  badge      Badge    @relation(fields: [badgeId], references: [id])
+  earnedAt   DateTime @default(now())
+
+  @@unique([progressId, badgeId])
+}
+
+model Report {
+  id            String   @id @default(cuid())
+  progressId    String   @unique
+  progress      Progress @relation(fields: [progressId], references: [id], onDelete: Cascade)
+  globalScore   Int
+  strengths     String   // JSON string[]
+  improvements  String   // JSON string[]
+  keyDecisions  String   // JSON [{situation, choice, impact}]
+  recommendation String
+  generatedAt   DateTime @default(now())
+}
+
+model AIInteraction {
+  id        String             @id @default(cuid())
+  userId    String?
+  user      User?              @relation(fields: [userId], references: [id])
+  type      String            
+  input     String             // JSON
+  output    String             // JSON
+  createdAt DateTime           @default(now())
+}
