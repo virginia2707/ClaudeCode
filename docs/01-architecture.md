@@ -8,7 +8,7 @@
 | Styles | **Tailwind CSS v4 + tokens CSS sémantiques** | Design system léger, cohérent, sans runtime |
 | Backend | **Server Actions + Route Handlers Next.js** (Node.js) | Pas de second service à déployer ; validation Zod à l'entrée de chaque action |
 | Base de données | **Prisma 5** · SQLite en dev, **PostgreSQL** en prod | Zéro infra pour démarrer ; bascule par `provider` + `url` |
-| Authentification | **Sessions JWT signées en cookie httpOnly** (bcrypt) — phase 2 | Maîtrise totale, pas de dépendance tierce ; SSO ajouté plus tard via adaptateur |
+| Authentification | **Sessions JWT signées en cookie httpOnly** (bcrypt, coût 12) — implémenté phase 2 | Maîtrise totale, pas de dépendance tierce ; SSO ajouté plus tard via adaptateur |
 | Stockage fichiers | **Adaptateur `FileStorage`** : local privé en dev, S3-compatible en prod, URLs signées | Les fichiers ne sont jamais servis statiquement |
 | Temps réel | **Polling léger / Server-Sent Events** pour le suivi de session | Suffisant pour le MVP ; WebSocket seulement si le mode équipe le réclame |
 | IA | **`AIService` → `AIProvider`** (stub déterministe, Anthropic, …) | Abstraction obligatoire, journalisation `AIJob`, filtrage PII |
@@ -113,7 +113,7 @@ Score configurable par mission (`scoringConfigJson` : pondérations analyse / d�
 - Authentification cookie httpOnly, `SameSite=Lax`, `Secure` en prod ; mots de passe bcrypt ; rotation possible via `AUTH_SECRET`.
 - Autorisation : `assertCan` + scope organisation dans chaque action ; vérification de propriété (`mission.organizationId === user.orgId`).
 - Validation serveur systématique (Zod) ; limites de taille ; types MIME vérifiés ; fichiers servis uniquement par URL signée courte.
-- Rate limiting sur login, inscription, coach IA, upload (mémoire en dev, Redis/Upstash en prod via adaptateur).
+- Rate limiting sur login, inscription et invitation (implémenté, seuils configurables par variables d'environnement ; mémoire en dev, Redis/Upstash en prod via adaptateur), puis coach IA et upload à leurs phases.
 - Anti-triche : colonnes `SERVER-ONLY` jamais sérialisées, DTO apprenant construits explicitement, évaluation côté serveur, verrouillage des étapes, une tentative = une ligne `LearnerAnswer` (`maxAttempts`).
 - Isolation des organisations ; `AuditLog` sur les actions sensibles (publication, validation d'évaluation, changement de rôle) ; en-têtes de sécurité (CSP, frame-ancestors) via `next.config.ts` en phase 20.
 

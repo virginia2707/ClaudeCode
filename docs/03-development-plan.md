@@ -5,8 +5,8 @@ Chaque phase suit : expliquer → développer → tester → identifier → corr
 | Phase | Contenu | Statut |
 |---|---|---|
 | 1 | Architecture + design system + landing page | **DONE** (voir ci-dessous) |
-| 2 | Authentification + rôles + organisations + invitations | À faire |
-| 3 | Dashboard Trainer | À faire |
+| 2 | Authentification + rôles + organisations + invitations | **DONE** (voir ci-dessous) |
+| 3 | Dashboard Trainer | Partiel : coquille et compteurs en place, contenu en phase 3 |
 | 4 | Création d'une mission (fiche, scénario, rôle, contraintes) | À faire |
 | 5 | Mission Builder (étapes, drag & drop, verrouillage, duplication) | À faire |
 | 6 | Étapes et tâches (types d'action, graders auto) | À faire |
@@ -55,3 +55,37 @@ Chaque phase suit : expliquer → développer → tester → identifier → corr
 - La page `/demo` est un aperçu statique : données, tâches et livrables complets arrivent en phase 19.
 - Le fournisseur IA par défaut lève `AI_NOT_CONFIGURED` (phase 16).
 - Tarifs affichés à titre indicatif ; pas de paiement (hors MVP).
+
+## Phase 2 — rapport
+
+### Développé
+- **Sessions** : JWT signé (`AUTH_SECRET`) en cookie httpOnly, `SameSite=Lax`, `Secure` en production, durée 30 jours. Le secret est obligatoire : l'application refuse de démarrer une session sans lui.
+- **Mots de passe** : bcrypt, coût 12 ; politique de 10 caractères minimum avec au moins une lettre et un chiffre.
+- **Inscription** : formateur (création d'une organisation dont il devient administrateur) ou apprenant (sans organisation, orienté vers `/app/join`), avec acceptation d'invitation intégrée au formulaire.
+- **Connexion / déconnexion** : message d'erreur identique que le compte existe ou non (pas d'énumération), `lastLoginAt` mis à jour, paramètre `next` validé contre les redirections ouvertes.
+- **Organisations** : appartenance multiple (`Membership`), bascule d'organisation, création d'organisation depuis `/app/join`.
+- **Invitations** : lien signé valable 14 jours, rôle choisi à l'invitation, acceptation par un compte existant ou par création de compte, révocation, usage unique.
+- **Administration** (`/app/admin`) : compteurs de plan, invitation de membres, changement de rôle, activation / désactivation, journal d'audit des huit dernières actions.
+- **Protection des routes** : contrôle optimiste du cookie dans `src/proxy.ts`, autorisation réelle par `requirePermission` (pages) et `authorizeAction` (server actions), toujours conjointe au périmètre de l'organisation.
+- **Coquille applicative** : navigation par rôle, sélecteur d'organisation, déconnexion, tableaux de bord formateur et apprenant, pages Missions et Sessions en attente de leurs phases.
+- **Limitation de débit** : connexion, inscription et invitation, seuils configurables par variables d'environnement.
+- **Journal d'audit** : inscription, création d'organisation, invitation, révocation, changement de rôle, activation et désactivation.
+- **Seed** : organisation « NovaSkills Formation » et trois comptes de démonstration ; deux comptes de test supplémentaires hors production.
+
+### Testé
+- Unitaires (Vitest, 23 tests au total) : normalisation de slug, jetons, schémas d'inscription et de connexion, blocage des redirections ouvertes, limitation de débit (fenêtre, isolation par sujet, lecture de `x-forwarded-for`).
+- E2E (Playwright, desktop + mobile, 53 tests au total) : redirection d'une route protégée avec `next`, mot de passe erroné, orientation par rôle, cloisonnement formateur / apprenant / administrateur, blocage d'une redirection externe, renvoi d'un utilisateur connecté hors de `/login`, validation serveur du formulaire d'inscription, création d'organisation par un formateur, refus d'un email déjà utilisé, parcours apprenant sans invitation, invitation complète de bout en bout dans un second navigateur avec lien non réutilisable, protection du dernier administrateur, changement de rôle, désactivation et réactivation, accessibilité axe sur les écrans connectés.
+- `eslint`, `tsc --noEmit`, `next build` : verts.
+
+### Problèmes rencontrés et corrigés
+- **Défaut responsive** : le halo décoratif des pages d'authentification débordait de 274 px sur mobile faute de rognage. Corrigé par un conteneur `overflow-hidden` ; le test de débordement horizontal couvre désormais ces pages.
+- **Limitation de débit trop rigide pour un proxy partagé** : les deux projets Playwright sortant par la même IP épuisaient le quota d'inscription. Les seuils sont devenus configurables, ce qui répond aussi au cas réel d'une salle de formation derrière une IP unique.
+- Tests initialement fragiles : sélecteurs ambigus (astérisque « obligatoire » dans les libellés, annonceur de route de Next.js, nom d'organisation rendu deux fois pour le responsive) remplacés par des requêtes par rôle accessible ; le formulaire d'invitation a reçu un nom accessible.
+- Interférence entre tests : le changement de rôle mutait un compte de démonstration utilisé par un autre test. Comptes de mutation dédiés par projet et exécution sérielle du groupe d'administration.
+- Un serveur de test resté actif sur le port 3100 servait une version obsolète et faisait échouer la suite ; processus arrêté avant relance.
+
+### Problèmes restants
+- Aucun envoi d'email : les invitations se transmettent par copie du lien depuis l'écran d'administration. L'intégration d'un fournisseur d'email reste à faire.
+- Pas encore de réinitialisation de mot de passe ni de vérification d'adresse email.
+- La limitation de débit est en mémoire : valable pour une instance, à remplacer par un adaptateur partagé en déploiement multi-instances.
+- Les pages Missions et Sessions sont des états vides assumés, remplis aux phases 4, 5 et 14.

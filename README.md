@@ -8,7 +8,7 @@ L'apprenant est placé dans une situation professionnelle réaliste ; le formate
 
 ## État du projet
 
-Développement par phases (méthode RCTFC). **Phase 1 terminée** : architecture, design system, landing page. Voir `docs/03-development-plan.md` pour le détail et le rapport de phase.
+Développement par phases (méthode RCTFC). **Phases 1 et 2 terminées** : architecture, design system, landing page, puis authentification, rôles, organisations et invitations. Voir `docs/03-development-plan.md` pour le détail et les rapports de phase.
 
 | Document | Contenu |
 |---|---|
@@ -27,10 +27,24 @@ Next.js 16 (App Router, React 19, TypeScript) · Tailwind CSS v4 + tokens séman
 npm install
 cp .env.example .env
 npx prisma migrate dev      # crée la base SQLite locale
+npm run seed                # comptes de démonstration
 npm run dev                 # http://localhost:3000
 ```
 
-Pages disponibles en phase 1 : `/` (landing), `/demo` (aperçu de l'écran apprenant), `/design-system`.
+Renseignez `AUTH_SECRET` dans `.env` avant de démarrer : l'application refuse de signer une session sans secret d'au moins 16 caractères.
+
+Pages publiques : `/` (landing), `/demo` (aperçu de l'écran apprenant), `/design-system`.
+Espace connecté : `/app/trainer`, `/app/learn`, `/app/admin`, `/app/join`.
+
+### Comptes de démonstration
+
+| Rôle | Email | Mot de passe |
+|---|---|---|
+| Administrateur | `admin@missionia.dev` | `Admin1234!` |
+| Formateur | `formateur@missionia.dev` | `Formateur1234!` |
+| Apprenant | `apprenant@missionia.dev` | `Apprenant1234!` |
+
+Tous membres de l'organisation de démonstration « NovaSkills Formation ». Le seed ajoute aussi deux comptes réservés aux tests automatisés, jamais créés en production.
 
 ## Scripts
 
@@ -52,9 +66,13 @@ prisma/                  schema.prisma + migrations
 src/app/                 routes (App Router) — (marketing)/ : landing, demo, design-system, login, register
 src/components/ui/       design system (Button, Card, Badge, ProgressBar, SkillList, Field, Alert, Stat…)
 src/components/marketing/  header, footer
+src/components/auth/     formulaires de connexion, inscription, invitation
+src/components/app/      coquille applicative, administration de l'organisation
 src/components/demo/     aperçu interactif de décision
 src/lib/constants.ts     valeurs canoniques (rôles, plans, statuts, types)
+src/lib/auth/            sessions JWT, mots de passe, schémas Zod, limitation de débit, jetons
 src/lib/authz/           matrice rôles → permissions
+src/actions/             server actions (authentification, organisation)
 src/lib/mission-engine/  registre des mécaniques, état d'exécution, vérification des contraintes
 src/lib/ai/              AIService, AIProvider, filtrage PII
 src/lib/analytics/       événements produit
