@@ -12,10 +12,12 @@ type Props = {
   hint?: string;
   preview?: "image" | "none";
   fileNameField?: string;
+  /** Notifie le parent (utilisé par l'éditeur d'énigme, qui stocke l'URL dans sa config). */
+  onUploaded?: (file: { url: string; fileName: string }) => void;
 };
 
 /** Champ fichier : envoie sur /api/uploads puis stocke l'URL dans un input caché. */
-export function FileUpload({ name, label, accept, defaultUrl, defaultFileName, hint, preview = "none", fileNameField }: Props) {
+export function FileUpload({ name, label, accept, defaultUrl, defaultFileName, hint, preview = "none", fileNameField, onUploaded }: Props) {
   const id = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const [url, setUrl] = useState(defaultUrl ?? "");
@@ -36,6 +38,7 @@ export function FileUpload({ name, label, accept, defaultUrl, defaultFileName, h
       setUrl(json.url);
       setFileName(json.originalName);
       setStatus(null);
+      onUploaded?.({ url: json.url, fileName: json.originalName });
     } catch (e) {
       setStatus({ tone: "danger", text: e instanceof Error ? e.message : "Échec de l'envoi" });
     } finally {
@@ -81,6 +84,7 @@ export function FileUpload({ name, label, accept, defaultUrl, defaultFileName, h
               onClick={() => {
                 setUrl("");
                 setFileName("");
+                onUploaded?.({ url: "", fileName: "" });
               }}
             >
               Retirer

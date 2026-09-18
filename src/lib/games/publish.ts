@@ -1,4 +1,6 @@
 import type { OwnedGame } from "@/lib/games/queries";
+import { validateConfigForPublish } from "@/lib/puzzles/registry";
+import { parseJson } from "@/lib/json";
 
 export type PublishIssue = { level: "error" | "warning"; message: string; stepId?: string };
 
@@ -22,6 +24,14 @@ export function validateForPublish(game: OwnedGame): PublishIssue[] {
     }
     if (step.puzzle.validationMode === "AUTO" && step.puzzle.answers.length === 0) {
       issues.push({ level: "error", message: `${label} : aucune réponse acceptée n'est définie.`, stepId: step.id });
+    }
+    const configIssues = validateConfigForPublish(
+      step.puzzle.type,
+      parseJson<unknown>(step.puzzle.config, {}),
+      step.puzzle.answers.map((a) => parseJson<unknown>(a.value, null)),
+    );
+    for (const issue of configIssues) {
+      issues.push({ level: "error", message: `${label} : ${issue}.`, stepId: step.id });
     }
     if (step.puzzle.skills.length === 0) {
       issues.push({ level: "warning", message: `${label} : aucune compétence associée.`, stepId: step.id });

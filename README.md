@@ -53,6 +53,7 @@ prisma/schema.prisma   modèle de données complet (23 entités)
 src/app                pages (App Router)
 src/components/ui      design system (boutons, cartes, champs, pills, icônes…)
 src/components/landing landing page
+src/lib/puzzles        registre extensible des 10 types d'énigmes + normalisation des réponses
 src/lib                domaine : constantes, plans, auth (session, gardes, rate limit), validation, Prisma
 src/actions            Server Actions (auth, join)
 src/proxy.ts           garde optimiste des routes /app et /admin (ex-middleware)
@@ -69,4 +70,5 @@ legacy/                ancien prototype, exclu du build (supprimable)
 | 2 | Authentification + rôles (ADMIN / TRAINER / LEARNER), routes protégées, 403, rate limiting | DONE |
 | 3 | Dashboard formateur : jeux (filtres, publier, dépublier, dupliquer, archiver, restaurer, supprimer), sessions, compétences, paramètres | DONE |
 | 4 | Création / modification d'un Escape Game (formulaire complet), réglages (chronomètre, score, classement, immersion), upload de fichiers | DONE |
-| 5 → 20 | Step builder, moteur, sessions, apprenant, équipes, score, rapports, badges, IA, démo, responsive, sécurité | à venir |
+| 5 | Step Builder : ajout / duplication / suppression / réordonnancement des étapes, éditeur d'étape complet, 10 types d'énigmes, indices à coût, compétences, prévisualisation | DONE |
+| 6 → 20 | Moteur d'énigmes (validation serveur), moteur, sessions, apprenant, équipes, score, rapports, badges, IA, démo, responsive, sécurité | à venir |
