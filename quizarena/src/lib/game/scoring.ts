@@ -98,7 +98,7 @@ export function scoreAnswer(input: ScoreInput): ScoreResult {
   }
   if (!input.correct) {
     const penalty = Math.max(0, Math.round(cfg.wrongAnswerPenalty));
-    return { accepted: true, correct: false, basePoints: 0, speedBonus: 0, streakBonus: 0, multiplier: 1, penalty, total: -penalty, streakAfter: 0 };
+    return { accepted: true, correct: false, basePoints: 0, speedBonus: 0, streakBonus: 0, multiplier: 1, penalty, total: penalty === 0 ? 0 : -penalty, streakAfter: 0 };
   }
   const basePoints = Math.max(0, Math.round(input.points));
   const speedBonus = speedBonusFor(elapsed, input.timeLimitMs, cfg);
