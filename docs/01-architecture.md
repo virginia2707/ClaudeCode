@@ -20,7 +20,8 @@ Principe : simplicité et maintenabilité. Aucun micro-service, aucune file de m
 
 ## 2. Architecture SaaS
 
-- **Multi-tenant par organisation** : toute entité métier porte `organizationId` directement ou via sa mission. Un helper `orgScope(user)` est injecté dans chaque requête Prisma ; aucune requête « globale » côté produit.
+- **Multi-tenant par organisation** : toute entité métier porte `organizationId` directement ou via sa mission. Implémenté en phase 3 : `src/lib/data/scope.ts` définit un `OrgScope` que reçoit chaque fonction d'accès aux données, et les helpers `missionInScope` / `editableSkillInScope` échouent plutôt que de renvoyer l'objet d'une autre organisation.
+- **Permissions et périmètre sont deux contrôles distincts** : une permission dit ce qu'un rôle a le droit de faire, le périmètre dit sur quelles données. Une permission que possèdent plusieurs rôles (`mission:read`, utile à l'apprenant qui joue) ne garde jamais un écran d'édition : les surfaces d'auteur exigent une permission d'auteur.
 - **Membership** : rôle par organisation (`ADMIN`, `TRAINER`, `LEARNER`). Un formateur indépendant possède une organisation personnelle créée à l'inscription.
 - **Plans** (`FREE`, `PRO`, `BUSINESS`, `ENTERPRISE`) stockés sur l'organisation ; `PLAN_LIMITS` appliqué côté serveur (nombre de missions, formateurs, IA, analytics). Paiement hors MVP.
 - **Invitations** par email + token ; invitation directe à une session pour les apprenants ; code d'accès de session pour rejoindre sans invitation nominative.

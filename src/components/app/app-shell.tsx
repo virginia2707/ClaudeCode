@@ -17,6 +17,8 @@ function navFor(role: OrgRole | null): NavItem[] {
     items.push({ href: "/app/trainer", label: "Tableau de bord", icon: "chart" });
     items.push({ href: "/app/trainer/missions", label: "Missions", icon: "layers" });
     items.push({ href: "/app/trainer/sessions", label: "Sessions", icon: "users" });
+    items.push({ href: "/app/trainer/learners", label: "Apprenants", icon: "users" });
+    items.push({ href: "/app/trainer/skills", label: "Compétences", icon: "target" });
   } else {
     items.push({ href: "/app/learn", label: "Mes missions", icon: "target" });
   }

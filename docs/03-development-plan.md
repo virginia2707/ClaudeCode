@@ -6,7 +6,7 @@ Chaque phase suit : expliquer → développer → tester → identifier → corr
 |---|---|---|
 | 1 | Architecture + design system + landing page | **DONE** (voir ci-dessous) |
 | 2 | Authentification + rôles + organisations + invitations | **DONE** (voir ci-dessous) |
-| 3 | Dashboard Trainer | Partiel : coquille et compteurs en place, contenu en phase 3 |
+| 3 | Dashboard Trainer | **DONE** (voir ci-dessous) |
 | 4 | Création d'une mission (fiche, scénario, rôle, contraintes) | À faire |
 | 5 | Mission Builder (étapes, drag & drop, verrouillage, duplication) | À faire |
 | 6 | Étapes et tâches (types d'action, graders auto) | À faire |
@@ -89,3 +89,34 @@ Chaque phase suit : expliquer → développer → tester → identifier → corr
 - Pas encore de réinitialisation de mot de passe ni de vérification d'adresse email.
 - La limitation de débit est en mémoire : valable pour une instance, à remplacer par un adaptateur partagé en déploiement multi-instances.
 - Les pages Missions et Sessions sont des états vides assumés, remplis aux phases 4, 5 et 14.
+
+## Phase 3 — rapport
+
+### Développé
+- **Couche d'accès aux données cloisonnée** (`src/lib/data/`) : chaque lecture et chaque écriture métier passe par un `OrgScope`. Les helpers `missionInScope` et `editableSkillInScope` lèvent une erreur plutôt que de renvoyer l'objet d'une autre organisation, ce qui rend le cloisonnement explicite au lieu de dépendre de la vigilance de chaque requête.
+- **Tableau de bord formateur** : compteurs réels (missions par statut, sessions ouvertes, apprenants actifs, compétences), missions et sessions récentes, raccourcis, quota du plan.
+- **Liste des missions** : onglets par statut avec compteurs, recherche sur titre, description, secteur et métier, tri (modification, titre, statut), états vides distincts selon qu'un filtre est actif ou non, alerte de quota atteint.
+- **Actions sur une mission** : duplication en copie profonde, archivage et restauration, suppression définitive refusée si la mission a déjà été jouée.
+- **Copie profonde d'une mission** : scénario, rôle, contraintes, compétences, étapes, tâches, ressources, jeux de données, livrables, grilles d'évaluation, décisions, options et conséquences. Les identifiants internes du moteur (étape suivante, étape débloquée, ressource révélée) sont remappés vers les objets de la copie.
+- **Bibliothèque de compétences** : référentiel de l'organisation avec création, modification et suppression, bibliothèque globale MissionIA de huit compétences transverses importables, suppression refusée si la compétence est utilisée.
+- **Liste des apprenants** : recherche par nom ou email, activité résumée (missions en cours, terminées).
+- **Fixtures de test** (`prisma/fixtures.ts`, jamais chargées en production) : missions complètes permettant de tester l'affichage et la copie profonde avant que le Mission Builder n'existe.
+
+### Testé
+- Unitaires (Vitest, 36 tests au total) : analyse des paramètres de la liste (valeurs par défaut, rejet des valeurs inconnues, bornage de la recherche, paramètre répété), construction des liens de filtre, ordres de tri.
+- Intégration sur base SQLite jetable : copie profonde complète, remappage du branchement, absence de référence résiduelle vers la mission source, mission source inchangée, refus de dupliquer une mission d'une autre organisation.
+- E2E (Playwright, desktop et mobile, 71 tests au total) : tableau de bord, filtres, recherche sur un champ autre que le titre, tri, duplication puis suppression de la copie, archivage et restauration, cycle complet d'une compétence, refus de supprimer une compétence utilisée, import et retrait depuis la bibliothèque globale, recherche d'apprenants, cloisonnement des écrans formateur, accessibilité axe.
+- `eslint`, `tsc --noEmit`, `next build` : verts. Suite e2e lancée deux fois de suite sur la même base pour vérifier qu'elle est rejouable.
+
+### Problèmes rencontrés et corrigés
+- **Défaut d'autorisation** : la liste des missions et celle des sessions étaient gardées par `mission:read` et `session:read`, permissions que possède aussi un apprenant (il doit pouvoir lire la mission qu'il joue). Un apprenant accédait donc aux écrans d'édition du formateur. Ces pages exigent désormais une permission d'auteur. Le test de cloisonnement couvre les trois écrans.
+- **Perte de données à la duplication** : les critères d'évaluation rattachés à une étape ou à un livrable n'ont pas de `missionId` et n'étaient donc pas chargés. Une mission dupliquée perdait silencieusement toute sa grille d'évaluation. Détecté par le test d'intégration, corrigé en chargeant et en recopiant les critères au niveau de l'étape et du livrable.
+- **Échec silencieux à la modification d'une compétence** : le formulaire d'édition ne portait pas le champ description ; un champ absent arrive à `null`, que la validation rejette. L'enregistrement échouait sans message exploitable, et aurait effacé la description. Lecture des données de formulaire normalisée (`formString`) et formulaire complété.
+- **Éditeur de compétence qui restait ouvert** après enregistrement, masquant la valeur à jour. Il se referme désormais sur succès.
+- Tests initialement fragiles : assertions sur des messages transitoires effacés par le rafraîchissement de la liste (remplacées par des assertions sur le résultat réel), sélecteurs par sous-chaîne qui attrapaient aussi la copie d'une mission (remplacés par le titre exact), navigation immédiate après un clic qui annulait l'action serveur en cours, données partagées entre les projets desktop et mobile (chacun a désormais son bac à sable), et test d'import non rejouable sur une base déjà utilisée (il restaure maintenant l'état initial).
+
+### Problèmes restants
+- La création de mission n'existe pas encore : les boutons « Nouvelle mission » sont explicitement désactivés jusqu'à la phase 4, et la liste part d'un état vide après un simple `npm run seed`.
+- Le lien vers une mission pointe vers `/app/trainer/missions/[id]`, page construite en phase 5 (Mission Builder).
+- Les statistiques du tableau de bord sont des compteurs : les taux de complétion, scores moyens et compétences à renforcer arrivent en phase 15, une fois que des apprenants auront joué.
+- La page Sessions reste un état vide jusqu'à la phase 14.

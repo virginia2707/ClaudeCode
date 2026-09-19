@@ -5,7 +5,7 @@ import { requirePermission } from "@/lib/auth/current-user";
 export const metadata: Metadata = { title: "Sessions" };
 
 export default async function SessionsPage() {
-  await requirePermission("session:read");
+  await requirePermission("session:manage");
   return (
     <div className="space-y-6">
       <h1 className="h1">Sessions</h1>

@@ -8,7 +8,7 @@ L'apprenant est placé dans une situation professionnelle réaliste ; le formate
 
 ## État du projet
 
-Développement par phases (méthode RCTFC). **Phases 1 et 2 terminées** : architecture, design system, landing page, puis authentification, rôles, organisations et invitations. Voir `docs/03-development-plan.md` pour le détail et les rapports de phase.
+Développement par phases (méthode RCTFC). **Phases 1 à 3 terminées** : architecture et design system, authentification et organisations, tableau de bord formateur avec missions, compétences et apprenants. Voir `docs/03-development-plan.md` pour le détail et les rapports de phase.
 
 | Document | Contenu |
 |---|---|
@@ -27,7 +27,7 @@ Next.js 16 (App Router, React 19, TypeScript) · Tailwind CSS v4 + tokens séman
 npm install
 cp .env.example .env
 npx prisma migrate dev      # crée la base SQLite locale
-npm run seed                # comptes de démonstration
+npm run seed                # comptes de démonstration + bibliothèque de compétences
 npm run dev                 # http://localhost:3000
 ```
 
@@ -54,6 +54,7 @@ npm run typecheck   # tsc --noEmit
 npm test            # tests unitaires (Vitest)
 npm run build       # build de production
 npm run test:e2e    # Playwright (lance `next start` sur le port 3100 ; nécessite un build préalable)
+npm run fixtures    # jeux de données de test (missions complètes), hors production
 ```
 
 En environnement sans téléchargement de navigateur, définissez `PLAYWRIGHT_CHROMIUM_PATH` vers un Chromium existant.
@@ -68,15 +69,17 @@ src/components/ui/       design system (Button, Card, Badge, ProgressBar, SkillL
 src/components/marketing/  header, footer
 src/components/auth/     formulaires de connexion, inscription, invitation
 src/components/app/      coquille applicative, administration de l'organisation
+src/components/trainer/  liste et actions de missions, gestion des compétences
 src/components/demo/     aperçu interactif de décision
 src/lib/constants.ts     valeurs canoniques (rôles, plans, statuts, types)
 src/lib/auth/            sessions JWT, mots de passe, schémas Zod, limitation de débit, jetons
+src/lib/data/            accès aux données cloisonné par organisation (missions, compétences, apprenants)
 src/lib/authz/           matrice rôles → permissions
 src/actions/             server actions (authentification, organisation)
 src/lib/mission-engine/  registre des mécaniques, état d'exécution, vérification des contraintes
 src/lib/ai/              AIService, AIProvider, filtrage PII
 src/lib/analytics/       événements produit
-tests/unit, tests/e2e    Vitest, Playwright
+tests/unit, tests/integration, tests/e2e    Vitest (unitaires et intégration), Playwright
 legacy/the-apprentice/   ancien prototype conservé pour référence (hors compilation)
 ```
 

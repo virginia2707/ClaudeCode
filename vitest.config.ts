@@ -3,7 +3,9 @@ import path from "node:path";
 
 export default defineConfig({
   test: {
-    include: ["tests/unit/**/*.test.ts"],
+    include: ["tests/unit/**/*.test.ts", "tests/integration/**/*.test.ts"],
+    testTimeout: 30_000,
+    hookTimeout: 120_000,
     environment: "node",
   },
   resolve: {

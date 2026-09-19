@@ -63,6 +63,16 @@ export function fieldErrorsFrom(error: z.ZodError): Record<string, string> {
   return out;
 }
 
+/**
+ * Lit un champ de formulaire. Un champ absent du DOM arrive à `null`, que Zod
+ * rejette ; on le normalise en chaîne vide pour que les champs facultatifs
+ * restent facultatifs.
+ */
+export function formString(formData: FormData, key: string) {
+  const value = formData.get(key);
+  return typeof value === "string" ? value : "";
+}
+
 /** Empêche les redirections ouvertes : n'accepte que des chemins internes. */
 export function safeNext(next: string | undefined | null, fallback: string) {
   if (!next) return fallback;

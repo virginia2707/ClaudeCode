@@ -24,7 +24,7 @@ export default defineConfig({
   ],
   webServer: {
     // Base SQLite dédiée aux tests e2e : migrée puis alimentée par le seed.
-    command: `npx prisma migrate deploy && npx tsx prisma/seed.ts && npx next start -p ${PORT}`,
+    command: `npx prisma migrate deploy && npx tsx prisma/seed.ts && npx tsx prisma/fixtures.ts && npx next start -p ${PORT}`,
     env: {
       DATABASE_URL: "file:./e2e.db",
       AUTH_SECRET: "e2e-secret-for-playwright-only-0123456789",

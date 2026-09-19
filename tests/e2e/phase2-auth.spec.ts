@@ -59,7 +59,7 @@ test.describe("connexion", () => {
     await login(page, TRAINER);
     await expect(page).toHaveURL(/\/app\/trainer$/);
     await expect(page.getByRole("heading", { level: 1 })).toContainText("Bonjour Farid");
-    await expect(page.getByRole("link", { name: "Organisation" })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Organisation", exact: true })).toHaveCount(0);
     await page.goto("/app/admin");
     await expect(page).toHaveURL(/\/app\/trainer$/);
     await logout(page);
@@ -113,8 +113,8 @@ test.describe("inscription", () => {
     await page.getByRole("button", { name: "Créer mon compte" }).click();
     await expect(page).toHaveURL(/\/app\/trainer$/);
     await expect(page.getByRole("main").getByText("Académie E2E")).toBeVisible();
-    await expect(page.getByRole("link", { name: "Organisation" })).toBeVisible();
-    await page.getByRole("link", { name: "Organisation" }).click();
+    await expect(page.getByRole("link", { name: "Organisation", exact: true })).toBeVisible();
+    await page.getByRole("link", { name: "Organisation", exact: true }).click();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Académie E2E");
     await expect(page.getByText("user.register")).toBeVisible();
     await noSeriousA11y(page);

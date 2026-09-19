@@ -13,7 +13,8 @@
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
-    "seed": "tsx prisma/seed.ts"
+    "seed": "tsx prisma/seed.ts",
+    "fixtures": "tsx prisma/fixtures.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
