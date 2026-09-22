@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build --webpack",
     "postinstall": "prisma generate",
-    "start": "prisma migrate deploy && tsx prisma/seed.ts && next start -p ${PORT:-3000}",
+    "start": "next start -p ${PORT:-3000}",
     "lint": "eslint",
     "seed": "tsx prisma/seed.ts",
     "db:migrate": "prisma migrate dev"

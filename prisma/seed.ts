@@ -2,7 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { DEMO_ACCESS_CODE } from "../src/lib/seed-constants";
 
-const prisma = new PrismaClient();
+let prisma: PrismaClient;
 
 async function upsertUser(email: string, name: string, role: string, password: string) {
   const passwordHash = await bcrypt.hash(password, 10);
@@ -462,11 +462,23 @@ async function main() {
   console.log("Accounts: admin@apprentice.dev / Admin1234!, formateur@apprentice.dev / Formateur1234!, apprenant@apprentice.dev / Apprenant1234! (password shared for all demo accounts)");
 }
 
-main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+// Exported so it can be called with an already-instantiated PrismaClient
+// from src/instrumentation.ts (see src/lib/db-bootstrap.ts for why the
+// `prisma` CLI itself can't be relied on at runtime on every host).
+export async function runSeed(client: PrismaClient) {
+  prisma = client;
+  await main();
+}
+
+const isMain = import.meta.url === `file://${process.argv[1]}`;
+if (isMain) {
+  const client = new PrismaClient();
+  runSeed(client)
+    .catch((e) => {
+      console.error(e);
+      process.exit(1);
+    })
+    .finally(async () => {
+      await client.$disconnect();
+    });
+}
