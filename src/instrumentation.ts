@@ -23,10 +23,13 @@ export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
 
   try {
-    // `npx` isn't reliably on PATH in every host's runtime process (unlike
-    // its build environment), so call the installed binaries directly.
-    run("node_modules/.bin/prisma migrate deploy");
-    run("node_modules/.bin/tsx prisma/seed.ts");
+    // Avoid `npx` (not reliably on PATH in every host's runtime process) and
+    // avoid node_modules/.bin symlinks (some deploy pipelines don't preserve
+    // symlinks when promoting a build to its serving location) by invoking
+    // each CLI's real entry file directly with the current Node binary.
+    const node = process.execPath;
+    run(`${node} node_modules/prisma/build/index.js migrate deploy`);
+    run(`${node} node_modules/tsx/dist/cli.mjs prisma/seed.ts`);
   } catch {
     // Errors are already logged by run(); don't crash the server boot.
   }
