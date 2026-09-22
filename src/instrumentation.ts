@@ -23,8 +23,10 @@ export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
 
   try {
-    run("npx prisma migrate deploy");
-    run("npx tsx prisma/seed.ts");
+    // `npx` isn't reliably on PATH in every host's runtime process (unlike
+    // its build environment), so call the installed binaries directly.
+    run("node_modules/.bin/prisma migrate deploy");
+    run("node_modules/.bin/tsx prisma/seed.ts");
   } catch {
     // Errors are already logged by run(); don't crash the server boot.
   }
