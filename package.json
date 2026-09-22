@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "postinstall": "prisma generate",
+    "start": "prisma migrate deploy && tsx prisma/seed.ts && next start -p ${PORT:-3000}",
     "lint": "eslint",
     "seed": "tsx prisma/seed.ts",
     "db:migrate": "prisma migrate dev"
@@ -18,8 +19,10 @@
     "bcryptjs": "^3.0.3",
     "jsonwebtoken": "^9.0.3",
     "next": "16.3.5",
+    "prisma": "^5.22.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "tsx": "^4.23.13",
     "zod": "^4.6.5"
   },
   "devDependencies": {
@@ -31,9 +34,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.5",
-    "prisma": "^5.22.0",
     "tailwindcss": "^4",
-    "tsx": "^4.23.13",
     "typescript": "^5"
   }
 }
