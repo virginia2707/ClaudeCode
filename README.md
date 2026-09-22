@@ -14,9 +14,10 @@ statistique agrégé.
 
 - **Next.js 16** (App Router, React 19, Server Actions, TypeScript) — un seul projet
   full-stack : pages, API et logique métier au même endroit, adapté au déploiement web.
-- **Prisma + SQLite** — base de données relationnelle, zéro infrastructure externe pour
-  démarrer. Basculer vers Postgres en production ne demande qu'un changement de
-  `provider`/`url` dans `prisma/schema.prisma`.
+- **Prisma + MySQL** — base de données relationnelle. Les migrations et le seed de démo
+  s'appliquent automatiquement au démarrage du serveur (hook `src/instrumentation.ts`),
+  ce qui fonctionne quel que soit la commande utilisée par l'hébergeur pour lancer le
+  process Node.js.
 - **Tailwind CSS v4** — design system minimal (`src/app/globals.css`) : palette sombre,
   premium, sans esthétique "jeu vidéo pour enfants".
 - **jsonwebtoken + bcryptjs** — authentification par session JWT en cookie httpOnly,
@@ -28,10 +29,12 @@ statistique agrégé.
 
 ## Démarrage
 
+Nécessite une base MySQL joignable (locale ou distante) :
+
 ```bash
 npm install
-cp .env.example .env   # puis éditez JWT_SECRET si besoin
-npx prisma migrate dev
+cp .env.example .env   # éditez DATABASE_URL et JWT_SECRET
+npx prisma migrate deploy
 npm run seed            # crée les comptes de démo + la simulation "Hotel Aurora"
 npm run dev
 ```
@@ -49,9 +52,10 @@ Code d'accès de la simulation de démonstration (« Assistant Manager — Hôte
 
 ## Architecture des données
 
-Voir `prisma/schema.prisma`. SQLite ne supportant pas les enums côté Prisma, les
-valeurs de type enum (rôles, statuts, difficultés…) sont des `String` contraintes par
-convention — la liste canonique vit dans `src/lib/constants.ts`.
+Voir `prisma/schema.prisma`. Les valeurs de type enum (rôles, statuts, difficultés…)
+sont modélisées comme des `String` contraintes par convention plutôt que des enums
+MySQL natifs, pour rester simples à faire évoluer sans migration — la liste canonique
+vit dans `src/lib/constants.ts`.
 
 Entités principales : `User`, `Simulation`, `Skill`, `Mission`, `Situation`, `Choice`,
 `Consequence`, `Progress` (session de jeu d'un apprenant), `Decision`, `UserSkill`,
@@ -78,6 +82,25 @@ Entités principales : `User`, `Simulation`, `Skill`, `Mission`, `Situation`, `C
   fréquente par situation, taux d'abandon.
 - Simulation de démonstration complète et jouable : **Assistant Manager — Hôtel 4
   étoiles / Hotel Aurora** (5 jours, 7 compétences, 9 badges).
+
+## Déploiement
+
+Déployé sur Hostinger (hébergement Node.js, plan Cloud) via déploiement Git
+automatique depuis cette branche. Points spécifiques à cet hébergeur, utiles si vous
+migrez ailleurs :
+
+- Next.js 16 utilise Turbopack par défaut pour `next build`, qui nécessite des
+  binaires natifs. L'environnement de build Hostinger ne peut charger que le
+  compilateur WASM (glibc trop ancienne) et Turbopack ne le supporte pas — d'où
+  `"build": "next build --webpack"` dans `package.json`.
+- `next.config.mjs` (pas `.ts`) : le repli WASM de Next.js a un bug de résolution de
+  module avec une config TypeScript sur cet environnement.
+- `tailwindcss`, `@tailwindcss/postcss`, `typescript` et les `@types/*` sont dans
+  `dependencies` (pas `devDependencies`) car l'installation de production les ignore
+  sinon, cassant le build.
+- Les migrations et le seed tournent via `src/instrumentation.ts` plutôt que via le
+  script `start` de `package.json`, car l'hébergeur lance `next start` directement
+  sans passer par les scripts npm.
 
 ## Limites connues / prochaines étapes
 
