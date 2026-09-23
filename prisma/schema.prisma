@@ -1,0 +1,236 @@
+// The Apprentice — data model
+// MySQL is used in production (colocated with Hostinger web hosting, see
+// README). Local development needs a reachable MySQL instance too — see
+// .env.example.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// MySQL enums exist, but the app stores these as `String` columns anyway so
+// the same schema also worked on SQLite during early development. Allowed
+// values are enforced in application code — see src/lib/constants.ts for the
+// canonical lists:
+// Role: ADMIN | FORMATEUR | APPRENANT
+// Plan: FREE | PRO | BUSINESS | ENTERPRISE
+// SimulationStatus: DRAFT | PUBLISHED | ARCHIVED
+// Difficulty: EASY | MEDIUM | HARD | EXPERT
+// ProgressStatus: IN_PROGRESS | COMPLETED | ABANDONED
+// AIInteractionType: GENERATE_SIMULATION | COACH_HINT | GENERATE_FEEDBACK | GENERATE_REPORT
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         String   @default("APPRENANT")
+  plan         String   @default("FREE")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  simulationsCreated Simulation[]    @relation("CreatedSimulations")
+  progresses         Progress[]
+  aiInteractions     AIInteraction[]
+}
+
+model Simulation {
+  id          String            @id @default(cuid())
+  title       String
+  job         String
+  company     String
+  context     String            @db.Text
+  description String            @db.Text
+  durationDays Int              @default(5)
+  status      String            @default("DRAFT")
+  accessCode  String?           @unique
+  createdById String
+  createdBy   User              @relation("CreatedSimulations", fields: [createdById], references: [id])
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  skills     Skill[]
+  missions   Mission[]
+  badges     Badge[]
+  progresses Progress[]
+}
+
+model Skill {
+  id           String     @id @default(cuid())
+  simulationId String
+  simulation   Simulation @relation(fields: [simulationId], references: [id], onDelete: Cascade)
+  name         String
+  description  String?    @db.Text
+  icon         String?
+  order        Int        @default(0)
+
+  userSkills UserSkill[]
+}
+
+model Mission {
+  id                      String     @id @default(cuid())
+  simulationId            String
+  simulation              Simulation @relation(fields: [simulationId], references: [id], onDelete: Cascade)
+  dayNumber               Int
+  title                   String
+  description             String     @db.Text
+  context                 String     @db.Text
+  objective               String     @db.Text
+  estimatedDurationMinutes Int       @default(15)
+  difficulty              String     @default("MEDIUM")
+  xpAvailable             Int        @default(150)
+  maxScore                Int        @default(100)
+  order                   Int        @default(0)
+  createdAt               DateTime   @default(now())
+  updatedAt               DateTime   @updatedAt
+
+  situations Situation[]
+}
+
+model Situation {
+  id              String     @id @default(cuid())
+  missionId       String
+  mission         Mission    @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  title           String
+  description     String     @db.Text
+  order           Int        @default(0)
+  difficulty      String     @default("MEDIUM")
+  timeLimitSeconds Int?
+
+  choices   Choice[]
+  decisions Decision[]
+}
+
+model Choice {
+  id          String @id @default(cuid())
+  situationId String
+  situation   Situation @relation(fields: [situationId], references: [id], onDelete: Cascade)
+  label       String
+  text        String @db.Text
+  order       Int    @default(0)
+
+  consequence Consequence?
+  decisions   Decision[]
+}
+
+model Consequence {
+  id              String  @id @default(cuid())
+  choiceId        String  @unique
+  choice          Choice  @relation(fields: [choiceId], references: [id], onDelete: Cascade)
+  outcomeText     String  @db.Text
+  coachFeedback   String  @db.Text
+  variableDeltas  String  @db.Text // JSON map, e.g. {"customer_satisfaction":15,"communication":10}
+  skillDeltas     String  @db.Text // JSON map, e.g. {"<skillId>":8}
+  xpAward         Int     @default(0)
+  nextSituationId String? // branching override; null = next situation in mission order
+}
+
+model Progress {
+  id                 String         @id @default(cuid())
+  userId             String
+  user               User           @relation(fields: [userId], references: [id])
+  simulationId       String
+  simulation         Simulation     @relation(fields: [simulationId], references: [id])
+  status             String         @default("IN_PROGRESS")
+  currentMissionId   String?
+  currentSituationId String?
+  score              Int            @default(0)
+  xp                 Int            @default(0)
+  variablesJson      String         @default("{}") @db.Text
+  startedAt          DateTime       @default(now())
+  completedAt        DateTime?
+
+  decisions      Decision[]
+  userSkills     UserSkill[]
+  xpTransactions XPTransaction[]
+  userBadges     UserBadge[]
+  report         Report?
+
+  @@unique([userId, simulationId])
+}
+
+model Decision {
+  id               String    @id @default(cuid())
+  progressId       String
+  progress         Progress  @relation(fields: [progressId], references: [id], onDelete: Cascade)
+  situationId      String
+  situation        Situation @relation(fields: [situationId], references: [id])
+  choiceId         String
+  choice           Choice    @relation(fields: [choiceId], references: [id])
+  timeTakenSeconds Int?
+  timedOut         Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+}
+
+model UserSkill {
+  id         String   @id @default(cuid())
+  progressId String
+  progress   Progress @relation(fields: [progressId], references: [id], onDelete: Cascade)
+  skillId    String
+  skill      Skill    @relation(fields: [skillId], references: [id])
+  score      Int      @default(0)
+
+  @@unique([progressId, skillId])
+}
+
+model XPTransaction {
+  id         String   @id @default(cuid())
+  progressId String
+  progress   Progress @relation(fields: [progressId], references: [id], onDelete: Cascade)
+  amount     Int
+  reason     String
+  createdAt  DateTime @default(now())
+}
+
+model Badge {
+  id           String      @id @default(cuid())
+  simulationId String
+  simulation   Simulation  @relation(fields: [simulationId], references: [id], onDelete: Cascade)
+  code         String
+  name         String
+  description  String      @db.Text
+  icon         String
+  criteriaType String      // e.g. "first_decision", "mission_complete", "perfect_mission", "skill_threshold"
+  criteriaValue String?    // free-form parameter for the criteria (e.g. mission order, skill name+score)
+
+  userBadges UserBadge[]
+
+  @@unique([simulationId, code])
+}
+
+model UserBadge {
+  id         String   @id @default(cuid())
+  progressId String
+  progress   Progress @relation(fields: [progressId], references: [id], onDelete: Cascade)
+  badgeId    String
+  badge      Badge    @relation(fields: [badgeId], references: [id])
+  earnedAt   DateTime @default(now())
+
+  @@unique([progressId, badgeId])
+}
+
+model Report {
+  id            String   @id @default(cuid())
+  progressId    String   @unique
+  progress      Progress @relation(fields: [progressId], references: [id], onDelete: Cascade)
+  globalScore   Int
+  strengths     String   @db.Text // JSON string[]
+  improvements  String   @db.Text // JSON string[]
+  keyDecisions  String   @db.Text // JSON [{situation, choice, impact}]
+  recommendation String @db.Text
+  generatedAt   DateTime @default(now())
+}
+
+model AIInteraction {
+  id        String             @id @default(cuid())
+  userId    String?
+  user      User?              @relation(fields: [userId], references: [id])
+  type      String
+  input     String             @db.Text // JSON
+  output    String             @db.Text // JSON
+  createdAt DateTime           @default(now())
+}
