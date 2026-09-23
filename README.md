@@ -8,7 +8,7 @@ L'apprenant est placé dans une situation professionnelle réaliste ; le formate
 
 ## État du projet
 
-Développement par phases (méthode RCTFC). **Phases 1 à 3 terminées** : architecture et design system, authentification et organisations, tableau de bord formateur avec missions, compétences et apprenants. Voir `docs/03-development-plan.md` pour le détail et les rapports de phase.
+Développement par phases (méthode RCTFC). **Phases 1 à 4 terminées** : architecture et design system, authentification et organisations, tableau de bord formateur, puis création et édition d'une mission (fiche, briefing immersif, rôle, contraintes, objectifs, compétences). Voir `docs/03-development-plan.md` pour le détail et les rapports de phase.
 
 | Document | Contenu |
 |---|---|
@@ -69,7 +69,7 @@ src/components/ui/       design system (Button, Card, Badge, ProgressBar, SkillL
 src/components/marketing/  header, footer
 src/components/auth/     formulaires de connexion, inscription, invitation
 src/components/app/      coquille applicative, administration de l'organisation
-src/components/trainer/  liste et actions de missions, gestion des compétences
+src/components/trainer/  liste et actions de missions, éditeurs de mission, gestion des compétences
 src/components/demo/     aperçu interactif de décision
 src/lib/constants.ts     valeurs canoniques (rôles, plans, statuts, types)
 src/lib/auth/            sessions JWT, mots de passe, schémas Zod, limitation de débit, jetons
@@ -78,7 +78,7 @@ src/lib/authz/           matrice rôles → permissions
 src/actions/             server actions (authentification, organisation)
 src/lib/mission-engine/  registre des mécaniques, état d'exécution, vérification des contraintes
 src/lib/ai/              AIService, AIProvider, filtrage PII
-src/lib/analytics/       événements produit
+src/lib/analytics/       événements produit et enregistrement
 tests/unit, tests/integration, tests/e2e    Vitest (unitaires et intégration), Playwright
 legacy/the-apprentice/   ancien prototype conservé pour référence (hors compilation)
 ```

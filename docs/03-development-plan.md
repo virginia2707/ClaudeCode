@@ -7,7 +7,7 @@ Chaque phase suit : expliquer → développer → tester → identifier → corr
 | 1 | Architecture + design system + landing page | **DONE** (voir ci-dessous) |
 | 2 | Authentification + rôles + organisations + invitations | **DONE** (voir ci-dessous) |
 | 3 | Dashboard Trainer | **DONE** (voir ci-dessous) |
-| 4 | Création d'une mission (fiche, scénario, rôle, contraintes) | À faire |
+| 4 | Création d'une mission (fiche, scénario, rôle, contraintes) | **DONE** (voir ci-dessous) |
 | 5 | Mission Builder (étapes, drag & drop, verrouillage, duplication) | À faire |
 | 6 | Étapes et tâches (types d'action, graders auto) | À faire |
 | 7 | Décisions et conséquences (branching, contraintes) | À faire |
@@ -120,3 +120,35 @@ Chaque phase suit : expliquer → développer → tester → identifier → corr
 - Le lien vers une mission pointe vers `/app/trainer/missions/[id]`, page construite en phase 5 (Mission Builder).
 - Les statistiques du tableau de bord sont des compteurs : les taux de complétion, scores moyens et compétences à renforcer arrivent en phase 15, une fois que des apprenants auront joué.
 - La page Sessions reste un état vide jusqu'à la phase 14.
+
+## Phase 4 — rapport
+
+### Développé
+- **Création d'une mission** : formulaire de fiche (titre, description, secteur, métier, niveau du public, difficulté, durée, mode individuel ou équipe), validation serveur, respect du quota du plan, création en brouillon puis redirection vers la mission.
+- **Page de mission** avec six éditeurs : fiche, briefing immersif, rôle de l'apprenant, contraintes, objectifs et évaluation, compétences mobilisées. Chacun est un formulaire autonome, enregistré indépendamment.
+- **Briefing immersif** structuré pour répondre aux sept questions attendues : qui, où, quel problème, pourquoi agir, quel délai, quelles contraintes, quel résultat attendu.
+- **Contraintes comparables** : intitulé, type, sens de comparaison, valeur et unité. La clé technique utilisée par le moteur est dérivée de l'intitulé, dédoublonnée, et affichée au formateur pour qu'il sache à quoi rattacher les coûts d'une décision.
+- **Objectifs pédagogiques** saisis une ligne par objectif, mode d'évaluation (score et compétences, ou compétences uniquement) et activation du coach IA.
+- **Compétences** : sélection parmi le référentiel de l'organisation et la bibliothèque globale, avec filtrage serveur de toute compétence n'appartenant pas au périmètre.
+- **Liste de préparation avant publication** : ce qui est fait, ce qui manque, et où le compléter.
+- **Verrouillage d'une mission publiée** : son contenu est figé côté serveur et neutralisé à l'écran, avec le chemin à suivre (dupliquer ou archiver).
+- **Analytics** : premier événement réellement enregistré (`mission_created`), via un module de suivi qui n'échoue jamais l'action métier.
+
+### Testé
+- Unitaires (Vitest, 58 tests au total) : schémas de fiche, de scénario et de contrainte (conversion des nombres, bornes, valeurs inconnues, décimales et négatifs), analyse des objectifs (puces, indentation, bornage, aller-retour d'affichage, JSON invalide).
+- Intégration sur base jetable : création en brouillon attribuée à l'organisation et à son auteur, champs facultatifs laissés nuls plutôt que vides, dérivation et dédoublonnage des clés de contrainte, refus d'agir sur une mission d'une autre organisation, filtrage des compétences étrangères, remplacement de sélection y compris par une liste vide, absence de doublon sur scénario et rôle, et verrouillage complet d'une mission publiée.
+- E2E (Playwright, desktop et mobile, 85 tests au total) : refus d'une fiche invalide avec conservation de la saisie, création puis ouverture de la mission, liste de préparation, persistance après rechargement de tous les éditeurs, clé de contrainte annoncée, suppression d'une contrainte, renommage, cloisonnement pour l'apprenant, mission publiée figée, accessibilité axe.
+- `eslint`, `tsc --noEmit`, `next build` : verts. Suite e2e lancée plusieurs fois de suite pour vérifier sa stabilité.
+
+### Problèmes rencontrés et corrigés
+- **Défaut d'accessibilité** : l'ancre d'une section et un champ de formulaire portaient le même identifiant. L'association `label`/champ était rompue, et la zone de saisie du briefing n'avait donc aucun nom accessible : un lecteur d'écran l'aurait annoncée sans libellé. Les identifiants de champs sont désormais préfixés par section.
+- **Mission publiée modifiable** : rien n'empêchait de changer le contenu d'une mission pendant qu'elle est jouée, ce qui aurait faussé le parcours et l'évaluation des apprenants en cours. Le contenu est maintenant figé, côté serveur comme à l'écran.
+- **Puces non retirées** dans les objectifs pédagogiques quand la ligne commençait par une espace. Trouvé par un test unitaire.
+- **Suite de tests non déterministe** : un serveur laissé actif après une session de captures d'écran était réutilisé par Playwright, qui testait alors une version obsolète de l'application. La réutilisation de serveur est désormais désactivée.
+- Tests initialement fragiles : un motif d'URL qui acceptait aussi la page de création, des lectures dépendant du classement chronologique d'une liste que d'autres tests font varier, et un libellé (« au maximum ») présent à la fois dans une liste et dans les options d'un sélecteur. Les rapports d'accessibilité nomment désormais l'élément fautif, pas seulement la règle.
+
+### Problèmes restants
+- La publication reste fermée : elle exige au moins une étape, donc le Mission Builder (phase 5). Le bouton est explicitement désactivé.
+- Le versionnement d'une mission publiée n'est pas implémenté : en attendant, la voie prévue est la duplication, et l'écran l'indique.
+- Les ressources, jeux de données, étapes, décisions et livrables se créent aux phases 5 à 9 : la page de mission les affichera au fur et à mesure.
+- Aucun import de cours ni génération par IA : phases 14 et 16.

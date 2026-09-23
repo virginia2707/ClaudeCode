@@ -27,6 +27,25 @@ export async function missionInScope(scope: OrgScope, missionId: string) {
   return mission;
 }
 
+export class MissionLockedError extends Error {
+  readonly status = 409;
+  constructor(id: string) {
+    super(`MISSION_LOCKED:${id}`);
+  }
+}
+
+/**
+ * Charge une mission modifiable. Une mission publiée est figée : des
+ * apprenants peuvent être en train de la jouer, et en changer le contenu sous
+ * leurs pieds fausserait leur parcours et leur évaluation. Pour la modifier,
+ * il faut la dupliquer ou l'archiver.
+ */
+export async function editableMissionInScope(scope: OrgScope, missionId: string) {
+  const mission = await missionInScope(scope, missionId);
+  if (mission.status === "PUBLISHED") throw new MissionLockedError(missionId);
+  return mission;
+}
+
 /** Charge une compétence modifiable : celles de l'organisation uniquement.
  *  Les compétences de la bibliothèque globale (organizationId null) sont
  *  lisibles par tous mais ne peuvent être ni modifiées ni supprimées. */

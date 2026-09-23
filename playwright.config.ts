@@ -35,7 +35,9 @@ export default defineConfig({
       RATE_LIMIT_INVITE: "500",
     },
     url: `http://localhost:${PORT}`,
-    reuseExistingServer: !process.env.CI,
+    // Toujours démarrer un serveur neuf : réutiliser un serveur laissé actif
+    // ferait passer les tests contre une version obsolète de l'application.
+    reuseExistingServer: false,
     timeout: 60_000,
   },
 });

@@ -1,11 +1,17 @@
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils/cn";
 
-type CardProps = ComponentProps<"div"> & { variant?: "default" | "elevated" | "inset" };
+// `ref` est omis : les éléments acceptés n'ont pas le même type de référence,
+// et une carte n'a pas besoin d'être référencée.
+type CardProps = Omit<ComponentProps<"div">, "ref"> & {
+  variant?: "default" | "elevated" | "inset";
+  /** Élément rendu : `section` quand la carte porte un titre et fait section. */
+  as?: "div" | "section" | "article";
+};
 
-export function Card({ variant = "default", className, ...rest }: CardProps) {
+export function Card({ variant = "default", className, as: Tag = "div", ...rest }: CardProps) {
   const base = variant === "elevated" ? "card-elevated" : variant === "inset" ? "card-inset" : "card";
-  return <div className={cn(base, className)} {...rest} />;
+  return <Tag className={cn(base, className)} {...rest} />;
 }
 
 export function CardHeader({ className, ...rest }: ComponentProps<"div">) {

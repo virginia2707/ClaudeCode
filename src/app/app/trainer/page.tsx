@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { ButtonLink } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Icon } from "@/components/ui/icons";
@@ -29,9 +29,7 @@ export default async function TrainerDashboard() {
           <p className="mt-2 text-text-secondary">Votre espace de conception : missions, sessions, apprenants et compétences.</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button disabled aria-disabled="true" title="La création de mission arrive en phase 4">
-            Nouvelle mission
-          </Button>
+          <ButtonLink href="/app/trainer/missions/new">Nouvelle mission</ButtonLink>
           <ButtonLink href="/app/trainer/missions" variant="secondary">
             Toutes les missions
           </ButtonLink>
@@ -66,7 +64,8 @@ export default async function TrainerDashboard() {
           {data.recentMissions.length === 0 ? (
             <EmptyState
               title="Aucune mission."
-              description="Vos missions apparaîtront ici. La création arrive en phase 4."
+              description="Créez votre première mission : une situation professionnelle à résoudre, pas un chapitre de cours."
+              action={<ButtonLink href="/app/trainer/missions/new">Créer une mission</ButtonLink>}
             />
           ) : (
             <ul className="space-y-2">

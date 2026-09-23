@@ -23,7 +23,10 @@ const missionRow = (page: Page, title: string) =>
 
 async function noSeriousA11y(page: Page) {
   const r = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
-  expect(r.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => v.id)).toEqual([]);
+  const serious = r.violations
+    .filter((v) => v.impact === "serious" || v.impact === "critical")
+    .map((v) => `${v.id} → ${v.nodes.map((n) => n.html.slice(0, 120)).join(" | ")}`);
+  expect(serious).toEqual([]);
 }
 
 test.describe("tableau de bord formateur", () => {
@@ -32,35 +35,42 @@ test.describe("tableau de bord formateur", () => {
     await expect(page.getByRole("heading", { level: 1 })).toContainText("Bonjour Farid");
     await expect(page.locator(".card-inset", { hasText: "Missions" }).first()).toBeVisible();
     await expect(page.getByRole("heading", { name: "Missions récentes" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "48 heures pour lancer le produit" })).toBeVisible();
+    // Le classement est chronologique et d'autres tests créent des missions :
+    // vérifier qu'il y en a, sans dépendre d'un titre précis.
+    await expect(page.locator("section", { hasText: "Missions récentes" }).getByRole("link").first()).toBeVisible();
     await expect(page.getByRole("link", { name: "Compétences", exact: true })).toBeVisible();
     await noSeriousA11y(page);
   });
 
-  test("la création de mission est annoncée comme indisponible", async ({ page }) => {
+  test("propose la création d'une mission", async ({ page }) => {
     await login(page, TRAINER);
-    await expect(page.getByRole("button", { name: "Nouvelle mission" }).first()).toBeDisabled();
+    await page.getByRole("link", { name: "Nouvelle mission" }).first().click();
+    await expect(page).toHaveURL(/\/app\/trainer\/missions\/new$/);
+    await expect(page.getByRole("heading", { level: 1 })).toContainText("Décrivez la situation professionnelle");
   });
 });
 
 test.describe("liste des missions", () => {
   test("liste, filtre par statut, recherche et trie", async ({ page }) => {
     await login(page, TRAINER);
-    await page.goto("/app/trainer/missions");
+    // Recherche ciblée : la liste par défaut est classée par date et d'autres
+    // tests y créent des missions.
+    await page.goto("/app/trainer/missions?q=" + encodeURIComponent("48 heures pour lancer le produit"));
     await expect(page.getByRole("link", { name: "48 heures pour lancer le produit" })).toBeVisible();
 
     // L'onglet « Toutes » exclut les missions archivées.
+    await page.goto("/app/trainer/missions?q=" + encodeURIComponent("Ancienne mission de recrutement"));
     await expect(page.getByText("Ancienne mission de recrutement")).toHaveCount(0);
     await page.getByRole("link", { name: /Archivée/ }).click();
     await expect(page).toHaveURL(/status=ARCHIVED/);
     await expect(page.getByText("Ancienne mission de recrutement")).toBeVisible();
 
-    await page.getByRole("link", { name: /^Publiée/ }).click();
+    await page.goto("/app/trainer/missions?status=PUBLISHED&q=" + encodeURIComponent("48 heures"));
     await expect(page.getByText("48 heures pour lancer le produit")).toBeVisible();
     await expect(page.getByText("Gérer un conflit")).toHaveCount(0);
 
     // Recherche sur un champ autre que le titre (le secteur).
-    await page.getByRole("link", { name: /^Toutes/ }).click();
+    await page.goto("/app/trainer/missions");
     await page.getByRole("searchbox", { name: "Rechercher" }).fill("Management");
     await page.getByRole("searchbox", { name: "Rechercher" }).press("Enter");
     await expect(page).toHaveURL(/q=Management/);

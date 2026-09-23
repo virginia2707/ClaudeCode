@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { MissionCard } from "@/components/trainer/mission-card";
 import { MissionFilters } from "@/components/trainer/mission-filters";
 import { Alert } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { requirePermission } from "@/lib/auth/current-user";
 import { can } from "@/lib/authz/permissions";
@@ -45,11 +45,7 @@ export default async function MissionsPage({ searchParams }: PageProps<"/app/tra
             )}
           </p>
         </div>
-        {canCreate && (
-          <Button disabled aria-disabled="true" title="La création de mission arrive en phase 4">
-            Nouvelle mission
-          </Button>
-        )}
+        {canCreate && !quota.reached && <ButtonLink href="/app/trainer/missions/new">Nouvelle mission</ButtonLink>}
       </div>
 
       {quota.reached && (
@@ -73,7 +69,8 @@ export default async function MissionsPage({ searchParams }: PageProps<"/app/tra
         ) : (
           <EmptyState
             title="Aucune mission pour l'instant."
-            description="Créez votre première mission à partir de zéro, ou générez-la depuis un cours existant. La création et le Mission Builder arrivent aux phases 4 et 5."
+            description="Créez votre première mission à partir de zéro. La génération depuis un cours existant arrive en phase 16."
+            action={canCreate ? <ButtonLink href="/app/trainer/missions/new">Créer une mission</ButtonLink> : undefined}
           />
         )
       ) : (
