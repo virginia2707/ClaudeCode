@@ -8,6 +8,7 @@ import { questionSchema } from "@/lib/validation/quiz";
 import { fieldErrorsFrom, type ActionState } from "@/lib/action-state";
 import { getOwnedQuiz } from "@/lib/quiz/access";
 import { writeQuestion } from "@/lib/quiz/write";
+import { rateLimit } from "@/lib/rate-limit";
 
 function questionFromForm(formData: FormData) {
   return {
@@ -54,6 +55,8 @@ export async function saveQuestionAction(
   formData: FormData,
 ): Promise<ActionState> {
   const user = await requireTrainer();
+  const rl = rateLimit(`save-question:${user.id}`, 120, 10 * 60 * 1000);
+  if (!rl.ok) return { error: "Trop de modifications. Réessayez dans quelques instants." };
   const quiz = await getOwnedQuiz(quizId, user);
   const raw = questionFromForm(formData);
   const parsed = questionSchema.safeParse(raw);

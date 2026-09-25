@@ -261,6 +261,10 @@ model PlayerAnswer {
   answer       Answer?      @relation(fields: [answerId], references: [id], onDelete: SetNull)
 
   @@unique([gamePlayerId, gameQuestionId])
+  // The unique index above is keyed by gamePlayerId first, so it doesn't
+  // serve the "who answered this question" queries (every answer submission
+  // and SSE snapshot) that filter by gameQuestionId alone.
+  @@index([gameQuestionId])
 }
 
 model PlayerJoker {

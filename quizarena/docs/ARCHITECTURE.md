@@ -231,3 +231,29 @@ partir du document, sans jamais être appelée depuis le client ; `AIProvider.ge
 recevrait ce texte comme contexte supplémentaire dans le prompt (fournisseur réel) ou comme
 source de mots-clés (fournisseur stub). Le contrat « toujours relu, jamais publié
 automatiquement » s'applique de la même façon, quelle que soit la source du contenu.
+
+---
+
+## 9. Sécurité et performance — vérifications de la phase 14
+
+Complète le tableau de risques (section 7) après un audit dédié.
+
+### Sécurité
+
+| Contrôle | Implémentation |
+|---|---|
+| Rate limiting complet | Ajouté aux dernières actions qui en manquaient : création de quiz, création de question (manuelle et IA), création de partie, génération IA (la plus sensible : chaque appel peut interroger un fournisseur payant). S'ajoute aux limites déjà en place (inscription, connexion, rejoindre une partie, réponse, joker, partie démo). |
+| CSRF | Les Server Actions bénéficient de la protection native de Next.js (ID d'action chiffrés, vérification d'origine). Les routes `/api/games/[id]/answer` et `/joker` (appelées via `fetch`, pas des Server Actions) ajoutent une vérification explicite d'origine (`isSameOriginRequest`) en défense en profondeur, en plus du cookie de session `sameSite=lax` qui bloque déjà son envoi sur un POST cross-site. |
+| Content-Security-Policy | Ajoutée dans `next.config.ts` (politique sans nonce, documentée par Next.js) : `default-src 'self'`, aucun script/frame tiers, `object-src 'none'`, `frame-ancestors 'none'`. Une politique à base de nonce aurait forcé le rendu dynamique de toutes les pages (y compris la landing page), au détriment de la performance. |
+| Injections | Aucune requête SQL brute (`$queryRaw`/`$executeRaw`) dans le code, uniquement le client Prisma paramétré. Aucun `dangerouslySetInnerHTML` ni `eval`. |
+| Dépendances | `npm audit` : une vulnérabilité haute sévérité dans `deepmerge-ts` (dépendance transitive du CLI `prisma`, jamais exécutée par `@prisma/client` en production) corrigée via `overrides` dans `package.json`, sans changer la version de Prisma utilisée par le projet. |
+
+### Performance
+
+| Constat | Correction |
+|---|---|
+| Page d'accueil rendue dynamiquement | `AppHeader` (qui lit le cookie de session) était utilisé sur la landing page, empêchant sa génération statique — la page la plus visitée et la plus cachable de l'application. Remplacée par le `SiteHeader` non personnalisé ; la page est de nouveau générée statiquement (`○` dans la sortie de build). |
+| Index manquant | `PlayerAnswer` n'avait qu'un index unique `[gamePlayerId, gameQuestionId]`, qui ne sert pas les requêtes filtrant uniquement par `gameQuestionId` (répartition des réponses, comptage à chaque soumission, snapshot SSE) — un chemin critique, appelé à chaque réponse. Ajout de `@@index([gameQuestionId])`. |
+| Taille des bundles | Vérifiée après build (~856 Ko de JS client au total, réparti en chunks chargés à la demande par route) : dans la norme pour une application de cette envergure, aucun chunk anormalement volumineux. |
+
+Ces vérifications correspondent à l'étape **C — CHECK** de la méthode RTFTC (sécurité, performance).

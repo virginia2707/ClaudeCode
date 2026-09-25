@@ -12,6 +12,8 @@ import { GAME_MODES } from "@/lib/constants";
 
 export async function createGameAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const user = await requireTrainer();
+  const rl = rateLimit(`create-game:${user.id}`, 30, 10 * 60 * 1000);
+  if (!rl.ok) return { error: "Trop de parties créées. Réessayez dans quelques minutes." };
   const quizId = String(formData.get("quizId") ?? "");
   const modeRaw = String(formData.get("mode") ?? "");
   const mode = (GAME_MODES as readonly string[]).includes(modeRaw) ? (modeRaw as "INDIVIDUAL" | "TEAM") : undefined;

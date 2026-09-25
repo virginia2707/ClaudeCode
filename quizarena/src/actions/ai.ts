@@ -11,19 +11,23 @@ import { generateQuestionsSchema } from "@/lib/validation/ai";
 import { questionSchema } from "@/lib/validation/quiz";
 import { fieldErrorsFrom, type ActionState } from "@/lib/action-state";
 import { PLAN_LIMITS, type Plan } from "@/lib/constants";
+import { rateLimit } from "@/lib/rate-limit";
 
 export type GenerateState = ActionState & { drafts?: GeneratedQuestion[] };
 
 /**
  * Generates draft questions with AIService. Nothing is persisted here: the
  * trainer reviews and edits every draft in the UI before any is added to the
- * quiz (see addGeneratedQuestionAction).
+ * quiz (see addGeneratedQuestionAction). Rate-limited per account: each call
+ * can hit a real, billed AI provider.
  */
 export async function generateQuestionsAction(_prev: GenerateState, formData: FormData): Promise<GenerateState> {
   const user = await requireTrainer();
   if (!PLAN_LIMITS[user.plan as Plan]?.ai) {
     return { error: `La génération par IA n'est pas incluse dans votre plan ${user.plan}.` };
   }
+  const rl = rateLimit(`ai-generate:${user.id}`, 20, 60 * 60 * 1000);
+  if (!rl.ok) return { error: "Trop de générations IA. Réessayez dans quelques minutes." };
   const raw = {
     topic: String(formData.get("topic") ?? ""),
     level: String(formData.get("level") ?? "MEDIUM"),
@@ -68,6 +72,8 @@ function draftFromForm(formData: FormData) {
  */
 export async function addGeneratedQuestionAction(quizId: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
   const user = await requireTrainer();
+  const rl = rateLimit(`save-question:${user.id}`, 120, 10 * 60 * 1000);
+  if (!rl.ok) return { error: "Trop de modifications. Réessayez dans quelques instants." };
   const quiz = await getOwnedQuiz(quizId, user);
   const raw = draftFromForm(formData);
   const parsed = questionSchema.safeParse(raw);

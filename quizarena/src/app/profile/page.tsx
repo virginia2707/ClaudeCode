@@ -18,11 +18,14 @@ export default async function ProfilePage() {
   const level = levelFor(user.totalXp);
   const next = nextLevel(user.totalXp);
   const progress = levelProgress(user.totalXp);
-  const [recentBadges, badgeCount, totalBadges] = await Promise.all([
+  const [recentBadges, distinctBadges, totalBadges] = await Promise.all([
     prisma.playerBadge.findMany({ where: { userId: user.id }, orderBy: { awardedAt: "desc" }, take: 6, include: { badge: true } }),
-    prisma.playerBadge.count({ where: { userId: user.id } }),
+    // Distinct by badge: the same badge can be earned again in a later game,
+    // so counting rows would let this exceed the catalog's total.
+    prisma.playerBadge.findMany({ where: { userId: user.id }, select: { badgeId: true }, distinct: ["badgeId"] }),
     prisma.badge.count(),
   ]);
+  const badgeCount = distinctBadges.length;
 
   return (
     <>

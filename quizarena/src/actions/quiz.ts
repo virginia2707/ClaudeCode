@@ -9,6 +9,7 @@ import { fieldErrorsFrom, type ActionState } from "@/lib/action-state";
 import { PLAN_LIMITS, type Plan } from "@/lib/constants";
 import { track } from "@/lib/analytics";
 import { getOwnedQuiz } from "@/lib/quiz/access";
+import { rateLimit } from "@/lib/rate-limit";
 
 function metaFromForm(formData: FormData) {
   return {
@@ -21,6 +22,8 @@ function metaFromForm(formData: FormData) {
 
 export async function createQuizAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const user = await requireTrainer();
+  const rl = rateLimit(`create-quiz:${user.id}`, 20, 60 * 60 * 1000);
+  if (!rl.ok) return { error: "Trop de quiz créés récemment. Réessayez dans quelques minutes." };
   const raw = metaFromForm(formData);
   const parsed = quizMetaSchema.safeParse(raw);
   if (!parsed.success) return { fieldErrors: fieldErrorsFrom(parsed.error.issues), values: raw };

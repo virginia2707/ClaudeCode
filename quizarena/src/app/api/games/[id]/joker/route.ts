@@ -4,6 +4,7 @@ import { getPlayerSession } from "@/lib/game/player-access";
 import { useJoker as applyJoker, EngineError, reconcileGame } from "@/lib/game/engine";
 import { rateLimit } from "@/lib/rate-limit";
 import { JOKER_TYPES } from "@/lib/constants";
+import { isSameOriginRequest } from "@/lib/security/csrf";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,7 @@ const bodySchema = z.object({ gameQuestionId: z.string().min(1).max(64), type: z
 
 /** Player arms a joker on the current question. */
 export async function POST(request: NextRequest, ctx: RouteContext<"/api/games/[id]/joker">) {
+  if (!isSameOriginRequest(request)) return Response.json({ error: "Requête refusée." }, { status: 403 });
   const { id: gameId } = await ctx.params;
   const player = await getPlayerSession(gameId);
   if (!player) return Response.json({ error: "Session joueur invalide." }, { status: 401 });

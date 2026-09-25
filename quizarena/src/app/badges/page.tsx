@@ -43,7 +43,7 @@ export default async function BadgesPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Badges</h1>
           <p className="mt-1 text-text-muted">
-            {earned.length} / {badges.length} badge{badges.length > 1 ? "s" : ""} débloqué{earned.length > 1 ? "s" : ""}
+            {earnedByBadgeId.size} / {badges.length} badge{badges.length > 1 ? "s" : ""} débloqué{earnedByBadgeId.size > 1 ? "s" : ""}
           </p>
         </div>
 

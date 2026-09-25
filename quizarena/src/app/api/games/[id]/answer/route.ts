@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getPlayerSession } from "@/lib/game/player-access";
 import { submitAnswer, EngineError, reconcileGame } from "@/lib/game/engine";
 import { rateLimit } from "@/lib/rate-limit";
+import { isSameOriginRequest } from "@/lib/security/csrf";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,7 @@ const bodySchema = z.object({ gameQuestionId: z.string().min(1).max(64), answerI
 
 /** Player submits one answer. The server measures time and computes the score. */
 export async function POST(request: NextRequest, ctx: RouteContext<"/api/games/[id]/answer">) {
+  if (!isSameOriginRequest(request)) return Response.json({ error: "Requête refusée." }, { status: 403 });
   const { id: gameId } = await ctx.params;
   const player = await getPlayerSession(gameId);
   if (!player) return Response.json({ error: "Session joueur invalide." }, { status: 401 });
