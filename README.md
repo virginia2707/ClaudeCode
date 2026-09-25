@@ -39,11 +39,32 @@ npm run dev
 ```bash
 npm run typecheck   # TypeScript
 npm run lint        # ESLint
-npm test            # tests unitaires (Vitest)
+npm test            # 103 tests unitaires (Vitest)
 npm run build       # build de production
-# E2E (Playwright requis, serveur démarré et base seedée) :
+# E2E (Playwright requis, serveur démarré et base seedée) : 282 vérifications
 BASE=http://localhost:3000 npm run test:e2e
 ```
+
+Les scénarios E2E couvrent l'authentification et les rôles, le tableau de bord,
+la création d'un jeu, le Step Builder, une session complète, le mode équipe et
+les résultats, la génération IA, la démo Excel, la sécurité et l'anti-triche, et
+l'accessibilité (axe-core).
+
+### Sécurité
+
+- Réponses, score, temps et déblocages calculés exclusivement côté serveur ; le
+  score stocké est toujours la somme de son journal d'événements.
+- Les réponses attendues, les énoncés des étapes verrouillées et le texte des
+  indices non débloqués ne sont jamais envoyés au navigateur de l'apprenant.
+- Sessions JWT en cookie httpOnly, algorithme épinglé, rôle relu en base.
+- Jeton de participant signé et lié à une session, cloisonnement par propriétaire
+  sur toutes les ressources formateur.
+- Content-Security-Policy, X-Frame-Options, nosniff, Referrer-Policy,
+  Permissions-Policy, Cross-Origin-Opener-Policy.
+- Upload : liste blanche de types, limite de 20 Mo, nom de stockage aléatoire,
+  SVG toujours téléchargé et rendu inerte (`default-src 'none'; sandbox`).
+- Limitation de débit sur la connexion, l'inscription, l'entrée en session, les
+  réponses, les indices et la génération IA.
 
 ## Structure
 
@@ -85,4 +106,5 @@ legacy/                ancien prototype, exclu du build (supprimable)
 | 16 | Badges : 6 badges système, règles extensibles, attribution automatique et affichage | DONE |
 | 17 | Génération IA : abstraction de fournisseur, générateur hors-ligne par défaut, fournisseur Claude optionnel, brouillon toujours relu avant publication | DONE |
 | 18 | Démo « Mission Excel — Le reporting disparu » : 5 étapes, 5 compétences, catalogue CSV joint, installée dans chaque compte formateur | DONE |
-| 19 → 20 | Responsive et accessibilité, sécurité et performance | à venir |
+| 19 | Responsive et accessibilité : audit axe-core WCAG 2.1 AA sur 20 états de page, corrections de contraste et de liens, clavier, zoom 200 %, mouvement réduit | DONE |
+| 20 | Sécurité et performance : scénario offensif (36 vérifications), CSP et en-têtes, algorithme JWT épinglé, SVG téléchargé et cloisonné, index de base de données | DONE |

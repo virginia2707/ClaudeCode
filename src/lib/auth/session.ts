@@ -13,12 +13,13 @@ const SESSION_TTL_SECONDS = 60 * 60 * 24 * 14; // 14 jours
 export type SessionPayload = { sub: string; role: Role; v: number };
 
 export function signSession(payload: SessionPayload) {
-  return jwt.sign(payload, JWT_SECRET as string, { expiresIn: SESSION_TTL_SECONDS, issuer: "escapeclass" });
+  return jwt.sign(payload, JWT_SECRET as string, { algorithm: "HS256", expiresIn: SESSION_TTL_SECONDS, issuer: "escapeclass" });
 }
 
 export function verifySessionToken(token: string): SessionPayload | null {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET as string, { issuer: "escapeclass" }) as SessionPayload;
+    // Algorithme épinglé : un jeton signé autrement est rejeté.
+    const decoded = jwt.verify(token, JWT_SECRET as string, { algorithms: ["HS256"], issuer: "escapeclass" }) as SessionPayload;
     if (!decoded?.sub || !decoded?.role) return null;
     return decoded;
   } catch {

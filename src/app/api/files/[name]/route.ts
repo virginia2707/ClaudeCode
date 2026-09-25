@@ -13,16 +13,19 @@ export async function GET(_request: Request, ctx: RouteContext<"/api/files/[name
   if (!upload) return new NextResponse("Not found", { status: 404 });
   const file = await storage.read(name);
   if (!file) return new NextResponse("Not found", { status: 404 });
-  const inline = upload.mime.startsWith("image/") || upload.mime === "application/pdf";
+  // Un SVG rendu dans l'origine de l'application pourrait embarquer du script :
+  // il est toujours téléchargé, jamais affiché en ligne.
+  const isSvg = upload.mime === "image/svg+xml";
+  const inline = !isSvg && (upload.mime.startsWith("image/") || upload.mime === "application/pdf");
   const safeName = encodeURIComponent(upload.originalName);
   return new NextResponse(new Uint8Array(file.buffer), {
     headers: {
-      "Content-Type": upload.mime === "image/svg+xml" ? "image/svg+xml" : upload.mime,
+      "Content-Type": upload.mime,
       "Content-Length": String(file.size),
       "Content-Disposition": `${inline ? "inline" : "attachment"}; filename*=UTF-8''${safeName}`,
       "Cache-Control": "private, max-age=3600",
       "X-Content-Type-Options": "nosniff",
-      ...(upload.mime === "image/svg+xml" ? { "Content-Security-Policy": "script-src 'none'" } : {}),
+      "Content-Security-Policy": "default-src 'none'; sandbox",
     },
   });
 }

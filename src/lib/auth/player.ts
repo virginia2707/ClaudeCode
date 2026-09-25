@@ -14,12 +14,13 @@ if (!JWT_SECRET) throw new Error("JWT_SECRET environment variable is not set");
 export type PlayerToken = { sid: string; pid: string; v: number };
 
 export function signPlayerToken(payload: PlayerToken) {
-  return jwt.sign(payload, JWT_SECRET as string, { expiresIn: "12h", issuer: "escapeclass-player" });
+  return jwt.sign(payload, JWT_SECRET as string, { algorithm: "HS256", expiresIn: "12h", issuer: "escapeclass-player" });
 }
 
 export function verifyPlayerToken(token: string): PlayerToken | null {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET as string, { issuer: "escapeclass-player" }) as PlayerToken;
+    // Algorithme épinglé : un jeton signé autrement est rejeté.
+    const decoded = jwt.verify(token, JWT_SECRET as string, { algorithms: ["HS256"], issuer: "escapeclass-player" }) as PlayerToken;
     return decoded?.sid && decoded?.pid ? decoded : null;
   } catch {
     return null;
