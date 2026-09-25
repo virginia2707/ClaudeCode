@@ -60,7 +60,7 @@ export default async function TrainerLayout({ children }: { children: React.Reac
           </div>
         </div>
       </aside>
-      <main id="main" className="min-w-0 px-4 py-6 sm:px-8 sm:py-8">
+      <main id="main" tabIndex={-1} className="min-w-0 px-4 py-6 sm:px-8 sm:py-8">
         <div className="mb-4 flex items-center justify-end gap-2 lg:hidden">
           <span className="text-sm text-text-muted">{user.name}</span>
           <form action={logoutAction}>

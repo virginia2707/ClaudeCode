@@ -12,12 +12,14 @@ export function QuestionCard({
   total,
   text,
   imageUrl,
+  imageAlt,
   className,
 }: {
   index: number;
   total: number;
   text: string;
   imageUrl?: string | null;
+  imageAlt?: string | null;
   className?: string;
 }) {
   return (
@@ -27,7 +29,7 @@ export function QuestionCard({
       </div>
       {imageUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={imageUrl} alt="" className="mt-4 max-h-64 w-full rounded-xl object-contain" />
+        <img src={imageUrl} alt={imageAlt || "Illustration de la question"} className="mt-4 max-h-64 w-full rounded-xl object-contain" />
       ) : null}
       <p className="mt-3 text-xl font-semibold leading-snug sm:text-2xl">{text}</p>
     </div>

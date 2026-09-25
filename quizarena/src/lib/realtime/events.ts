@@ -24,6 +24,7 @@ export type QuestionView = {
   total: number;
   text: string;
   imageUrl: string | null;
+  imageAlt: string | null;
   answers: AnswerPublic[];
   timeLimit: number; // seconds
   points: number;

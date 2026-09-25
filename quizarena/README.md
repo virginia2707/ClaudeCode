@@ -51,5 +51,5 @@ npm run dev
 | 10 | Statistiques | ✅ |
 | 11 | IA | ✅ |
 | 12 | Badges, niveaux, XP | ✅ |
-| 13 | Responsive + accessibilité | ⏳ |
+| 13 | Responsive + accessibilité | ✅ |
 | 14 | Sécurité et performance | ⏳ |

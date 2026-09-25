@@ -154,7 +154,7 @@ export function PlayerScreen({ gameId, playerId, nickname, initialState }: { gam
           <ConnectionBadge status={connection} />
         </div>
       </header>
-      <main id="main" className="mx-auto w-full max-w-2xl flex-1 px-4 py-5">
+      <main id="main" tabIndex={-1} className="mx-auto w-full max-w-2xl flex-1 px-4 py-5">
         {status === "LOBBY" ? <WaitingRoom state={state} playerId={playerId} /> : null}
 
         {question && (status === "QUESTION" || status === "PAUSED" || status === "REVEAL" || status === "LEADERBOARD") ? (
@@ -165,7 +165,7 @@ export function PlayerScreen({ gameId, playerId, nickname, initialState }: { gam
             {status === "QUESTION" || status === "PAUSED" ? (
               <>
                 <TimerBar seconds={countdown.seconds} ratio={countdown.ratio} />
-                <QuestionCard index={question.index} total={question.total} text={question.text} imageUrl={question.imageUrl} />
+                <QuestionCard index={question.index} total={question.total} text={question.text} imageUrl={question.imageUrl} imageAlt={question.imageAlt} />
                 <AnswerGrid answers={answersForGrid} onSelect={answer} selectedId={retryPending ? null : mySelected} disabled={paused || submitting || alreadyAnswered || countdown.remainingMs <= 0} />
                 {error ? <Alert tone={error.includes("Second Chance") ? "spark" : "danger"}>{error}</Alert> : null}
                 {retryPending && !error ? <Alert tone="spark">Second Chance : mauvaise réponse, vous pouvez réessayer une fois.</Alert> : null}
@@ -183,7 +183,7 @@ export function PlayerScreen({ gameId, playerId, nickname, initialState }: { gam
             {status === "REVEAL" && feedback ? (
               <>
                 {state.settings.feedbackEnabled ? <FeedbackPanel data={feedback} explanation={state.reveal?.explanation ?? ""} showExplanation={state.settings.showExplanation} /> : null}
-                <QuestionCard index={question.index} total={question.total} text={question.text} imageUrl={question.imageUrl} />
+                <QuestionCard index={question.index} total={question.total} text={question.text} imageUrl={question.imageUrl} imageAlt={question.imageAlt} />
                 <AnswerGrid answers={question.answers} selectedId={mySelected} correctId={state.reveal?.correctAnswerId ?? null} />
               </>
             ) : null}

@@ -12,14 +12,20 @@
   --surface-2: #1a2031;
   --surface-3: #212a3d;
   --border: #273043;
-  --border-strong: #35405a;
+  /* WCAG 1.4.11 (non-text contrast, >=3:1) against bg/surface/surface-2 — used for input, button and card borders that must stay perceivable. */
+  --border-strong: #6275a2;
   --text: #eef1f7;
   --text-muted: #9aa4b8;
-  --text-faint: #6b7590;
+  /* WCAG 1.4.3 (>=4.5:1) against bg/surface/surface-2 at normal text sizes (hints, timestamps, labels). */
+  --text-faint: #8d95aa;
 
   /* Brand */
   --primary: #7c6cff;
   --primary-strong: #9a8dff;
+  /* Deeper shades of the same hue, reserved for solid-fill buttons: #7c6cff itself only reaches ~3.9:1
+     with white text, short of WCAG's 4.5:1 for normal-size text. */
+  --primary-solid: #3a29c2;
+  --primary-solid-hover: #4a37d6;
   --primary-ink: #ffffff;
   --primary-soft: rgba(124, 108, 255, 0.16);
 
@@ -60,6 +66,8 @@
   --color-text-faint: var(--text-faint);
   --color-primary: var(--primary);
   --color-primary-strong: var(--primary-strong);
+  --color-primary-solid: var(--primary-solid);
+  --color-primary-solid-hover: var(--primary-solid-hover);
   --color-primary-ink: var(--primary-ink);
   --color-primary-soft: var(--primary-soft);
   --color-spark: var(--spark);
@@ -150,11 +158,13 @@ body {
   transform: translateY(1px);
 }
 .btn-primary {
-  background: var(--primary);
+  /* A dedicated, darker shade of the brand purple: #7c6cff itself falls short
+     of 4.5:1 with white button text (WCAG 1.4.3). */
+  background: var(--primary-solid);
   color: var(--primary-ink);
 }
 .btn-primary:not(:disabled):hover {
-  background: var(--primary-strong);
+  background: var(--primary-solid-hover);
 }
 .btn-spark {
   background: var(--spark);

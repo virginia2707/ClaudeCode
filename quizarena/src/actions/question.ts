@@ -13,6 +13,7 @@ function questionFromForm(formData: FormData) {
   return {
     text: String(formData.get("text") ?? ""),
     imageUrl: String(formData.get("imageUrl") ?? ""),
+    imageAlt: String(formData.get("imageAlt") ?? ""),
     answers: [0, 1, 2, 3].map((i) => String(formData.get(`answer_${i}`) ?? "")),
     correctIndex: String(formData.get("correctIndex") ?? ""),
     explanation: String(formData.get("explanation") ?? ""),
@@ -31,6 +32,7 @@ function valuesFrom(raw: ReturnType<typeof questionFromForm>): Record<string, st
   return {
     text: raw.text,
     imageUrl: raw.imageUrl,
+    imageAlt: raw.imageAlt,
     answer_0: raw.answers[0],
     answer_1: raw.answers[1],
     answer_2: raw.answers[2],

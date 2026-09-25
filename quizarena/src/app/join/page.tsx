@@ -24,7 +24,7 @@ export default async function JoinPage({ searchParams }: { searchParams: Promise
   return (
     <>
       <AppHeader />
-      <main id="main" className="mx-auto max-w-md px-4 py-10 sm:py-16">
+      <main id="main" tabIndex={-1} className="mx-auto max-w-md px-4 py-10 sm:py-16">
         <div className="text-center">
           <div className="text-xs font-bold uppercase tracking-[0.3em] text-primary-strong">Join the arena</div>
           <h1 className="mt-2 text-3xl font-bold tracking-tight">Rejoindre une partie</h1>

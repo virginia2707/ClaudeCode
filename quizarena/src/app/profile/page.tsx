@@ -27,7 +27,7 @@ export default async function ProfilePage() {
   return (
     <>
       <AppHeader />
-      <main id="main" className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
+      <main id="main" tabIndex={-1} className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
         <h1 className="text-3xl font-bold tracking-tight">{user.name}</h1>
         <p className="mt-1 text-text-muted">{user.email}</p>
         <div className="mt-8 grid gap-4 sm:grid-cols-3">

@@ -15,7 +15,7 @@ export default async function DemoPage() {
   return (
     <>
       <AppHeader />
-      <main id="main" className="mx-auto max-w-2xl px-4 py-14 sm:px-6">
+      <main id="main" tabIndex={-1} className="mx-auto max-w-2xl px-4 py-14 sm:px-6">
         <div className="text-xs font-bold uppercase tracking-[0.2em] text-primary-strong">Try Demo</div>
         <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Essayez QuizArena sans compte</h1>
         <p className="mt-3 text-text-muted">

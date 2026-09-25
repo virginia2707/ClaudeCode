@@ -61,23 +61,31 @@ export type QuizMetaInput = z.infer<typeof quizMetaSchema>;
 
 export const answerInputSchema = z.string().trim().min(1, "Réponse requise").max(300, "300 caractères maximum");
 
-export const questionSchema = z.object({
-  text: z.string().trim().min(5, "5 caractères minimum").max(600, "600 caractères maximum"),
-  imageUrl: z
-    .string()
-    .trim()
-    .max(500)
-    .refine((v) => v === "" || /^https?:\/\//.test(v), "URL http(s) attendue")
-    .default(""),
-  answers: z.tuple([answerInputSchema, answerInputSchema, answerInputSchema, answerInputSchema]),
-  correctIndex: z.coerce.number().int().min(0).max(3),
-  explanation: z.string().trim().max(1000, "1000 caractères maximum").default(""),
-  difficulty: z.enum(DIFFICULTIES).default("MEDIUM"),
-  timeLimit: z.coerce.number().int().min(5, "5 s minimum").max(300, "300 s maximum").default(20),
-  points: z.coerce.number().int().min(0).max(10_000).default(500),
-  category: z.string().trim().max(60).default(""),
-  skills: z.array(z.string().trim().min(1).max(40)).max(10).default([]),
-});
+export const questionSchema = z
+  .object({
+    text: z.string().trim().min(5, "5 caractères minimum").max(600, "600 caractères maximum"),
+    imageUrl: z
+      .string()
+      .trim()
+      .max(500)
+      .refine((v) => v === "" || /^https?:\/\//.test(v), "URL http(s) attendue")
+      .default(""),
+    // The image carries pedagogical content, never decorative: an alt text is
+    // required whenever an image is attached (enforced by the refine below).
+    imageAlt: z.string().trim().max(300, "300 caractères maximum").default(""),
+    answers: z.tuple([answerInputSchema, answerInputSchema, answerInputSchema, answerInputSchema]),
+    correctIndex: z.coerce.number().int().min(0).max(3),
+    explanation: z.string().trim().max(1000, "1000 caractères maximum").default(""),
+    difficulty: z.enum(DIFFICULTIES).default("MEDIUM"),
+    timeLimit: z.coerce.number().int().min(5, "5 s minimum").max(300, "300 s maximum").default(20),
+    points: z.coerce.number().int().min(0).max(10_000).default(500),
+    category: z.string().trim().max(60).default(""),
+    skills: z.array(z.string().trim().min(1).max(40)).max(10).default([]),
+  })
+  .refine((d) => d.imageUrl === "" || d.imageAlt !== "", {
+    message: "Texte alternatif requis lorsqu'une image est ajoutée (accessibilité).",
+    path: ["imageAlt"],
+  });
 export type QuestionInput = z.infer<typeof questionSchema>;
 
 export const JOKER_KEYS = JOKER_TYPES;

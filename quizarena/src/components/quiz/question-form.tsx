@@ -36,9 +36,19 @@ export function QuestionForm({
       <Field label="Question" htmlFor="text" error={fe.text}>
         <Textarea id="text" name="text" required defaultValue={v.text} placeholder="Quelle fonction Excel permet de rechercher une valeur dans un tableau selon une clé ?" aria-invalid={!!fe.text} />
       </Field>
-      <Field label="Image (URL, facultatif)" htmlFor="imageUrl" error={fe.imageUrl}>
-        <Input id="imageUrl" name="imageUrl" type="url" defaultValue={v.imageUrl} placeholder="https://…" aria-invalid={!!fe.imageUrl} />
-      </Field>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Image (URL, facultatif)" htmlFor="imageUrl" error={fe.imageUrl}>
+          <Input id="imageUrl" name="imageUrl" type="url" defaultValue={v.imageUrl} placeholder="https://…" aria-invalid={!!fe.imageUrl} />
+        </Field>
+        <Field
+          label="Texte alternatif de l'image"
+          htmlFor="imageAlt"
+          error={fe.imageAlt}
+          hint="Requis si une image est ajoutée : décrivez ce qu'elle montre pour les lecteurs d'écran."
+        >
+          <Input id="imageAlt" name="imageAlt" defaultValue={v.imageAlt} placeholder="Ex. Capture d'écran du tableau croisé dynamique" aria-invalid={!!fe.imageAlt} />
+        </Field>
+      </div>
 
       <fieldset>
         <legend className="label">Réponses — cochez la bonne réponse</legend>

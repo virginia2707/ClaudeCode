@@ -34,7 +34,7 @@ export default async function HostPage({ params }: { params: Promise<{ id: strin
           <MotionToggle className="btn btn-ghost btn-sm hidden sm:inline-flex" />
         </div>
       </header>
-      <main id="main" className="mx-auto max-w-5xl space-y-6 px-4 py-8 sm:px-6">
+      <main id="main" tabIndex={-1} className="mx-auto max-w-5xl space-y-6 px-4 py-8 sm:px-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{state.title}</h1>
           {state.description ? <p className="mt-1 text-text-muted">{state.description}</p> : null}

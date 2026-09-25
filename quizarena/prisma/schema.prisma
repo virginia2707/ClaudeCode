@@ -80,6 +80,8 @@ model Question {
   order       Int
   text        String
   imageUrl    String?
+  // Required whenever imageUrl is set: the image is pedagogical content, never decorative.
+  imageAlt    String?
   explanation String   @default("")
   difficulty  String   @default("MEDIUM") // Difficulty
   timeLimit   Int      @default(20) // seconds

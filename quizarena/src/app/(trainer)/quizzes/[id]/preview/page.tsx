@@ -42,7 +42,7 @@ export default async function QuizPreviewPage({ params }: { params: Promise<{ id
             const correct = q.answers.find((a) => a.isCorrect);
             return (
               <section key={q.id} aria-label={`Aperçu question ${i + 1}`} className="max-w-3xl space-y-3">
-                <QuestionCard index={i} total={quiz.questions.length} text={q.text} imageUrl={q.imageUrl} />
+                <QuestionCard index={i} total={quiz.questions.length} text={q.text} imageUrl={q.imageUrl} imageAlt={q.imageAlt} />
                 <AnswerGrid answers={q.answers.map((a) => ({ id: a.id, text: a.text }))} correctId={correct?.id ?? null} />
                 <div className="flex flex-wrap gap-2 text-xs text-text-muted">
                   <Pill>{q.timeLimit} s</Pill>

@@ -18,6 +18,7 @@ export default async function EditQuestionPage({ params }: { params: Promise<{ i
   const initial = {
     text: q.text,
     imageUrl: q.imageUrl ?? "",
+    imageAlt: q.imageAlt ?? "",
     answer_0: q.answers[0]?.text ?? "",
     answer_1: q.answers[1]?.text ?? "",
     answer_2: q.answers[2]?.text ?? "",

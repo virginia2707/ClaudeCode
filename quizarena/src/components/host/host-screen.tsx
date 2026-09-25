@@ -82,7 +82,7 @@ export function HostScreen({ gameId, initialState, joinUrl }: { gameId: string; 
             <div className="card p-6 sm:p-8">
               {question.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={question.imageUrl} alt="" className="mb-4 max-h-72 w-full rounded-xl object-contain" />
+                <img src={question.imageUrl} alt={question.imageAlt || "Illustration de la question"} className="mb-4 max-h-72 w-full rounded-xl object-contain" />
               ) : null}
               <p className="text-2xl font-semibold leading-snug sm:text-3xl">{question.text}</p>
             </div>

@@ -32,6 +32,7 @@ export async function writeQuestion(opts: {
   const base = {
     text: d.text,
     imageUrl: d.imageUrl || null,
+    imageAlt: d.imageUrl ? d.imageAlt : null,
     explanation: d.explanation,
     difficulty: d.difficulty,
     timeLimit: d.timeLimit,

@@ -52,6 +52,7 @@ export async function loadQuestionView(gameId: string, index: number): Promise<{
     total,
     text: gq.question.text,
     imageUrl: gq.question.imageUrl,
+    imageAlt: gq.question.imageAlt,
     answers: gq.question.answers.map((a) => ({ id: a.id, text: a.text })),
     timeLimit: gq.question.timeLimit,
     points: gq.question.points,

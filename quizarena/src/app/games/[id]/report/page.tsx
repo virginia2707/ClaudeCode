@@ -31,7 +31,7 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
           </Link>
         ) : null}
       </header>
-      <main id="main" className="mx-auto max-w-5xl space-y-8 px-4 py-8 sm:px-6">
+      <main id="main" tabIndex={-1} className="mx-auto max-w-5xl space-y-8 px-4 py-8 sm:px-6">
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{game.quiz.title}</h1>

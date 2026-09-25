@@ -6,7 +6,7 @@ export default function LandingPage() {
   return (
     <>
       <AppHeader />
-      <main id="main">
+      <main id="main" tabIndex={-1}>
         <Hero />
         <HowItWorks />
         <Audiences />
