@@ -24,9 +24,14 @@ export default async function TrainerHome() {
         title={`Bonjour ${user.firstName}`}
         description="Créez une mission, lancez une session et suivez les compétences de vos apprenants."
         actions={
-          <ButtonLink href="/app/games/new">
-            Créer un Escape Game <IconArrowRight size={16} />
-          </ButtonLink>
+          <>
+            <ButtonLink href="/app/games/generate" variant="secondary">
+              Générer avec l&apos;IA
+            </ButtonLink>
+            <ButtonLink href="/app/games/new">
+              Créer un Escape Game <IconArrowRight size={16} />
+            </ButtonLink>
+          </>
         }
       />
       <div className="grid gap-4 sm:grid-cols-3">

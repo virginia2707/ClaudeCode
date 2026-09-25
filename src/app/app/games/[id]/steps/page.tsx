@@ -66,6 +66,12 @@ export default async function StepsPage(props: PageProps<"/app/games/[id]/steps"
           </>
         }
       />
+      {sp.generated ? (
+        <Alert tone="info" className="mb-4">
+          Brouillon généré par l&apos;IA. Relisez chaque étape, vérifiez les réponses attendues, prévisualisez, puis publiez.
+          Rien n&apos;a été publié automatiquement.
+        </Alert>
+      ) : null}
       {sp.created ? (
         <Alert tone="success" className="mb-4">
           Escape Game créé. Ajoutez maintenant vos étapes et vos énigmes.

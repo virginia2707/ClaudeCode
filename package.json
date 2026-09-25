@@ -12,13 +12,14 @@
     "seed": "tsx prisma/seed.ts",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
-    "test:e2e": "node tests/e2e/auth.mjs && node tests/e2e/dashboard.mjs && node tests/e2e/game-form.mjs && node tests/e2e/step-builder.mjs && node tests/e2e/session.mjs && node tests/e2e/team-results.mjs",
+    "test:e2e": "node tests/e2e/auth.mjs && node tests/e2e/dashboard.mjs && node tests/e2e/game-form.mjs && node tests/e2e/step-builder.mjs && node tests/e2e/session.mjs && node tests/e2e/team-results.mjs && node tests/e2e/ai-generate.mjs",
     "seed:fixtures": "tsx tests/fixtures/seed-test-games.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.127.0",
     "@prisma/client": "^5.22.0",
     "bcryptjs": "^3.0.3",
     "jsonwebtoken": "^9.0.3",

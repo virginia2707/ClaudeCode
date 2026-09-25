@@ -8,7 +8,7 @@ import { Alert } from "@/components/ui/alert";
 import { guardPage } from "@/lib/auth/guards";
 import { countGamesByStatus, listGamesForOwner } from "@/lib/games/queries";
 import { cn } from "@/lib/cn";
-import { IconArrowRight, IconLayers } from "@/components/ui/icons";
+import { IconArrowRight, IconLayers, IconSparkles } from "@/components/ui/icons";
 import type { GameStatus } from "@/lib/constants";
 
 export const metadata: Metadata = { title: "Mes Escape Games" };
@@ -31,9 +31,14 @@ export default async function GamesPage(props: PageProps<"/app/games">) {
         title="Mes Escape Games"
         description="Créez, modifiez, dupliquez et publiez vos missions."
         actions={
-          <ButtonLink href="/app/games/new">
-            Créer un Escape Game <IconArrowRight size={16} />
-          </ButtonLink>
+          <>
+            <ButtonLink href="/app/games/generate" variant="secondary">
+              <IconSparkles size={16} /> Générer avec l&apos;IA
+            </ButtonLink>
+            <ButtonLink href="/app/games/new">
+              Créer un Escape Game <IconArrowRight size={16} />
+            </ButtonLink>
+          </>
         }
       />
       {sp.deleted ? <Alert tone="success" className="mb-4">Escape Game supprimé.</Alert> : null}
