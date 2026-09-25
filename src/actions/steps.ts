@@ -9,7 +9,7 @@ import { fieldErrors } from "@/lib/validation/auth";
 import { formToObject } from "@/lib/validation/game";
 import { answersSchema, hintsSchema, skillNamesSchema, stepSchema } from "@/lib/validation/step";
 import { defaultConfigFor, getPuzzleDefinition } from "@/lib/puzzles/registry";
-import { ensureSkillsByName } from "@/actions/skills";
+import { ensureSkillsByName } from "@/lib/skills";
 import { failResult, okResult, type ActionResult } from "@/lib/action-result";
 
 export type StepFormState = ActionResult & { values?: Record<string, string> };

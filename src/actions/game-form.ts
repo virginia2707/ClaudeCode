@@ -10,7 +10,7 @@ import { canCreateGame } from "@/lib/plans-guard";
 import { track } from "@/lib/analytics/track";
 import { fieldErrors } from "@/lib/validation/auth";
 import { formToObject, gameInfoSchema, gameSettingsSchema, parseTargetSkills } from "@/lib/validation/game";
-import { ensureSkillsByName } from "@/actions/skills";
+import { ensureSkillsByName } from "@/lib/skills";
 import type { ActionResult } from "@/lib/action-result";
 
 export type GameFormState = ActionResult & { values?: Record<string, string> };

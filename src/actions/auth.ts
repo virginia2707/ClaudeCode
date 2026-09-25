@@ -65,6 +65,17 @@ export async function registerAction(_prev: AuthFormState, formData: FormData): 
     select: { id: true, role: true },
   });
 
+  // Chaque nouveau formateur reçoit la démo jouable : le produit est
+  // immédiatement démontrable. Un échec ici ne doit pas bloquer l'inscription.
+  if (user.role === "TRAINER") {
+    try {
+      const { createDemoGame } = await import("@/lib/demo/excel-demo");
+      await createDemoGame(user.id);
+    } catch (error) {
+      console.error("createDemoGame failed", error);
+    }
+  }
+
   await createSession(user);
   redirect(safeNext(formData.get("next"), homeForRole(user.role as Role)));
 }

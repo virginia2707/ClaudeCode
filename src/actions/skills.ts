@@ -5,6 +5,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth/session";
 import { failResult, okResult, type ActionResult } from "@/lib/action-result";
+import { ensureSkillsByName } from "@/lib/skills";
 
 const skillSchema = z.object({
   name: z.string().trim().min(2, "Nom trop court").max(80, "Nom trop long"),
@@ -37,19 +38,4 @@ export async function deleteSkillAction(skillId: string): Promise<ActionResult> 
   return okResult(undefined, "Compétence supprimée.");
 }
 
-/** Crée ou récupère des compétences par nom (utilisé par l'éditeur d'énigme et l'IA). */
-export async function ensureSkillsByName(ownerId: string, names: string[]) {
-  const out: { id: string; name: string }[] = [];
-  for (const rawName of names) {
-    const name = rawName.trim().slice(0, 80);
-    if (!name) continue;
-    const skill = await prisma.skill.upsert({
-      where: { ownerId_name: { ownerId, name } },
-      update: {},
-      create: { ownerId, name },
-      select: { id: true, name: true },
-    });
-    out.push(skill);
-  }
-  return out;
-}
+export { ensureSkillsByName };

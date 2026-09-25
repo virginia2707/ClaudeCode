@@ -58,6 +58,7 @@ src/lib/engine         moteur pur : chronomètre, déblocage, progression, score
 src/lib/sessions       snapshot de jeu, moteur serveur de session, état live formateur
 src/lib/realtime       bus d'événements SSE
 src/lib/ai             service IA : interface AIProvider, générateur hors-ligne, fournisseur Claude
+src/lib/demo           escape game de démonstration « Mission Excel »
 src/lib                domaine : constantes, plans, auth (session, gardes, rate limit), validation, Prisma
 src/actions            Server Actions (auth, join)
 src/proxy.ts           garde optimiste des routes /app et /admin (ex-middleware)
@@ -83,4 +84,5 @@ legacy/                ancien prototype, exclu du build (supprimable)
 | 15 | Rapports et statistiques : résultats de session, énigmes difficiles, compétences, comparaison de sessions | DONE |
 | 16 | Badges : 6 badges système, règles extensibles, attribution automatique et affichage | DONE |
 | 17 | Génération IA : abstraction de fournisseur, générateur hors-ligne par défaut, fournisseur Claude optionnel, brouillon toujours relu avant publication | DONE |
-| 18 → 20 | Démo Excel, responsive et accessibilité, sécurité et performance | à venir |
+| 18 | Démo « Mission Excel — Le reporting disparu » : 5 étapes, 5 compétences, catalogue CSV joint, installée dans chaque compte formateur | DONE |
+| 19 → 20 | Responsive et accessibilité, sécurité et performance | à venir |

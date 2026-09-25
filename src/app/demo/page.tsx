@@ -11,11 +11,11 @@ export const metadata: Metadata = {
 };
 
 const steps = [
-  { n: 1, title: "Le fichier mystérieux", skill: "SOMME et calculs", type: "Code numérique" },
-  { n: 2, title: "Les données cachées", skill: "Références relatives et absolues", type: "Mot secret" },
-  { n: 3, title: "L'erreur de formule", skill: "Recherche de données (RECHERCHEX)", type: "Réponse courte" },
-  { n: 4, title: "Le code final", skill: "Tableau croisé dynamique", type: "Code numérique" },
-  { n: 5, title: "Mission finale", skill: "Analyse des résultats", type: "QCM" },
+  { n: 1, title: "Le fichier mystérieux", skill: "SOMME et calculs", type: "Code numérique", code: "4729" },
+  { n: 2, title: "Les données cachées", skill: "Références relatives et absolues", type: "Mot secret", code: "EXCEL" },
+  { n: 3, title: "L'erreur de formule", skill: "Recherche de données (RECHERCHEX)", type: "Fichier à analyser", code: "REPORTING" },
+  { n: 4, title: "Le code final", skill: "Tableau croisé dynamique", type: "Code numérique", code: "8294" },
+  { n: 5, title: "Mission finale", skill: "Analyse des résultats", type: "QCM", code: "—" },
 ];
 
 export default function DemoPage() {
@@ -48,8 +48,7 @@ export default function DemoPage() {
               </ButtonLink>
             </div>
             <p className="mt-4 text-xs text-text-subtle">
-              La démo jouable est fournie avec chaque nouveau compte formateur. Elle est installée en phase 18 du plan de
-              développement.
+              La démo est installée automatiquement dans chaque nouveau compte formateur, prête à être lancée, jouée et dupliquée.
             </p>
           </div>
         </section>
@@ -65,7 +64,12 @@ export default function DemoPage() {
                     <div className="font-medium">{s.title}</div>
                     <div className="text-xs text-text-muted">Compétence : {s.skill}</div>
                   </div>
-                  <Pill>{s.type}</Pill>
+                  <div className="flex items-center gap-2">
+                    <Pill>{s.type}</Pill>
+                    <span className="code-chip text-xs" aria-label={`Code obtenu : ${s.code}`}>
+                      {s.code}
+                    </span>
+                  </div>
                 </li>
               ))}
             </ol>

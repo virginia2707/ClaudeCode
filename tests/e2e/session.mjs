@@ -119,8 +119,7 @@ await learner.fill("input.input-code", "4729");
 await learner.locator("button", { hasText: "Valider" }).click();
 await learner.waitForFunction(() => document.body.textContent.includes("Étape 2"), null, { timeout: 30000 });
 check("correct answer advances to step 2", true);
-const headerAfter = await learner.textContent("header");
-const scoreAfter = Number(headerAfter.match(/(\d+) pts/)?.[1] ?? "0");
+const scoreAfter = Number(await learner.locator("header [data-score]").getAttribute("data-score"));
 check("score credited minus hint cost", scoreAfter > 0 && scoreAfter < 200, String(scoreAfter));
 
 /* ------------------------------------------------- anti-triche : étape non courante */

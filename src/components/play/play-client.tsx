@@ -316,7 +316,13 @@ function Shell({ state, connected, children }: { state: LearnerState; connected:
               remainingSeconds={state.timer.remainingSeconds}
               paused={state.timer.paused}
             />
-            <Pill tone="accent">{state.progress.score} pts</Pill>
+            <span
+              className="pill pill-accent tabular-nums"
+              data-score={state.progress.score}
+              aria-label={`Score : ${state.progress.score} points`}
+            >
+              {state.progress.score} pts
+            </span>
           </div>
         </div>
         <div className="container-x pb-2">

@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth/session";
 import { uniqueGameSlug } from "@/lib/games/slug";
 import { canCreateGame } from "@/lib/plans-guard";
-import { ensureSkillsByName } from "@/actions/skills";
+import { ensureSkillsByName } from "@/lib/skills";
 import { track } from "@/lib/analytics/track";
 import { generateGameDraft } from "@/lib/ai/ai-service";
 import { AIError, generationRequestSchema, type GeneratedGame } from "@/lib/ai/types";

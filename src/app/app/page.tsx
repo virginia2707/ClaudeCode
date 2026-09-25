@@ -64,7 +64,9 @@ export default async function TrainerHome() {
             <Card>
               <IconPlay size={22} className="text-accent" />
               <h3 className="mt-3 font-semibold text-lg">Démo « Mission Excel — Le reporting disparu »</h3>
-              <p className="mt-1.5 text-sm text-text-muted">Un escape game complet de 30 minutes, prêt à être lancé et dupliqué (installé en phase 18).</p>
+              <p className="mt-1.5 text-sm text-text-muted">
+                Un escape game complet de 30 minutes, publié dans votre espace, prêt à être lancé, joué et dupliqué.
+              </p>
               <ButtonLink href="/demo" className="mt-4" variant="secondary">
                 Voir la présentation
               </ButtonLink>

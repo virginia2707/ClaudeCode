@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { SYSTEM_BADGES } from "../src/lib/engine/badges";
+import { createDemoGame } from "../src/lib/demo/excel-demo";
 
 const prisma = new PrismaClient();
 
@@ -27,6 +28,12 @@ async function main() {
     } else {
       await prisma.badge.create({ data: { ...badge, isSystem: true } });
     }
+  }
+
+  const trainer = await prisma.user.findUnique({ where: { email: "formateur@escapeclass.dev" }, select: { id: true } });
+  if (trainer) {
+    const demoId = await createDemoGame(trainer.id);
+    console.log(`Démo « Mission Excel — Le reporting disparu » : ${demoId}`);
   }
 
   console.log(`Comptes de démonstration : ${DEMO_ACCOUNTS.map((a) => a.email).join(", ")}`);
