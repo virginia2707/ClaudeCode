@@ -170,7 +170,7 @@ export default async function GameOverviewPage(props: PageProps<"/app/games/[id]
             {game.publishedAt ? <div>Publié le {formatDate(game.publishedAt)}</div> : null}
             <div className="mt-2">
               {pluralize(game.maxParticipants, "participant")} max ·{" "}
-              <Link href={`/app/games/${game.id}/settings`} className="text-accent hover:underline underline-offset-4">
+              <Link href={`/app/games/${game.id}/settings`} className="text-accent underline underline-offset-4">
                 Réglages du jeu <IconArrowRight size={12} className="inline" />
               </Link>
             </div>

@@ -107,6 +107,9 @@ model EscapeGame {
   badges   Badge[]
   aiJobs   AIJob[]
   events   AnalyticsEvent[]
+
+  @@index([ownerId, status, updatedAt])
+  @@index([organizationId])
 }
 
 model GameSetting {
@@ -176,6 +179,7 @@ model GameStep {
   events  ScoreEvent[]
 
   @@unique([gameId, order])
+  @@index([gameId])
 }
 
 model Puzzle {
@@ -275,6 +279,10 @@ model GameSession {
   teams      Team[]
   progresses PlayerProgress[]
   events     AnalyticsEvent[]
+
+  @@index([hostId, createdAt])
+  @@index([gameId, createdAt])
+  @@index([status])
 }
 
 model SessionPlayer {
@@ -294,6 +302,7 @@ model SessionPlayer {
   hintRequests   HintRequest[]
 
   @@unique([sessionId, displayName])
+  @@index([sessionId, lastSeenAt])
 }
 
 model Team {
@@ -354,6 +363,8 @@ model PlayerProgress {
   hintRequests HintRequest[]
   badges       PlayerBadge[]
   result       GameResult?
+
+  @@index([sessionId, status])
 }
 
 model PlayerAnswer {
@@ -370,6 +381,10 @@ model PlayerAnswer {
   scoreDelta       Int            @default(0)
   timeTakenSeconds Int?
   createdAt        DateTime       @default(now())
+
+  @@index([progressId, createdAt])
+  @@index([stepId])
+  @@index([status])
 }
 
 model ScoreEvent {
@@ -382,6 +397,8 @@ model ScoreEvent {
   delta      Int
   note       String?
   createdAt  DateTime       @default(now())
+
+  @@index([progressId])
 }
 
 model HintRequest {
@@ -464,6 +481,8 @@ model AIJob {
   error     String?
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
+
+  @@index([ownerId, createdAt])
 }
 
 model AnalyticsEvent {

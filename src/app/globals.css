@@ -15,7 +15,8 @@
   --border-strong: #33405a;
   --text: #e8ecf4;
   --text-muted: #9aa5bb;
-  --text-subtle: #6b7690;
+  /* Contraste >= 4.5:1 sur toutes les surfaces sombres (WCAG 2.1 AA). */
+  --text-subtle: #8792a8;
   --accent: #5eead4;
   --accent-strong: #2dd4bf;
   --accent-soft: rgba(94, 234, 212, 0.12);

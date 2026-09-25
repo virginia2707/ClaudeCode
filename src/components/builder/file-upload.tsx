@@ -59,7 +59,7 @@ export function FileUpload({ name, label, accept, defaultUrl, defaultFileName, h
         ) : null}
         <div className="min-w-0 flex-1 text-sm">
           {url ? (
-            <a href={url} target="_blank" rel="noreferrer" className="text-accent hover:underline underline-offset-4 break-all">
+            <a href={url} target="_blank" rel="noreferrer" className="text-accent underline underline-offset-4 break-all">
               {fileName || url}
             </a>
           ) : (
